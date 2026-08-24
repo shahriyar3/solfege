@@ -9,6 +9,9 @@ import { TunerGauge } from '@/components/tuner-gauge';
 import { NoteHistory } from '@/components/note-history';
 import { SessionHistory } from '@/components/session-history';
 import { ReferenceNotes } from '@/components/reference-notes';
+import { WaveformVisualizer } from '@/components/waveform-visualizer';
+import { PracticeMode } from '@/components/practice-mode';
+import { Metronome } from '@/components/metronome';
 import { cn } from '@/lib/utils';
 import {
   Mic,
@@ -34,6 +37,7 @@ export default function Home() {
     error,
     noteHistory,
     stats,
+    analyserNode,
     start,
     stop,
     resetHistory,
@@ -113,14 +117,18 @@ export default function Home() {
   }, [isActive, noteHistory]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-muted/30" dir="rtl">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/70 border-b border-border/50">
+      <header className="sticky top-0 z-40 backdrop-blur-2xl bg-background/60 border-b border-border/40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25">
+            <motion.div
+              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25"
+              whileHover={{ scale: 1.05, rotate: -3 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Music2 className="h-5 w-5 text-white" />
-            </div>
+            </motion.div>
             <div>
               <h1 className="text-lg font-extrabold leading-tight tracking-tight">سلفژ آنلاین</h1>
               <p className="text-[11px] text-muted-foreground leading-tight">تنظیم صدا و تمرین سلفژ</p>
@@ -143,11 +151,13 @@ export default function Home() {
 
       {/* Main content */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tuner column */}
-          <div className="lg:col-span-2 flex flex-col gap-5">
-            <Card className="overflow-hidden border border-border/50 shadow-xl shadow-black/5 bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-6 sm:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+          {/* Left column: Tuner */}
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
+            {/* Main tuner card */}
+            <Card className="overflow-hidden border border-border/40 shadow-xl shadow-black/[0.04] bg-card/90 backdrop-blur-sm">
+              <CardContent className="p-5 sm:p-8">
                 <TunerGauge
                   cents={currentPitch?.cents ?? 0}
                   noteName={currentPitch?.note ?? '—'}
@@ -159,22 +169,26 @@ export default function Home() {
                   volume={volume}
                 />
 
-                <div className="border-t border-border/50 my-6" />
+                {/* Waveform visualizer */}
+                <div className="my-5">
+                  <WaveformVisualizer isActive={isActive} analyserNode={analyserNode} />
+                </div>
+
+                <div className="border-t border-border/30 my-5" />
 
                 {/* Mic button and controls */}
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative">
-                    {/* Pulse rings when active */}
                     {isActive && (
                       <>
                         <motion.div
                           className="absolute inset-0 rounded-full bg-red-500/20"
-                          animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                          animate={{ scale: [1, 1.6], opacity: [0.5, 0] }}
                           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
                         />
                         <motion.div
-                          className="absolute inset-0 rounded-full bg-red-500/15"
-                          animate={{ scale: [1, 1.3], opacity: [0.4, 0] }}
+                          className="absolute inset-0 rounded-full bg-red-500/12"
+                          animate={{ scale: [1, 1.35], opacity: [0.35, 0] }}
                           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
                         />
                       </>
@@ -182,7 +196,7 @@ export default function Home() {
                     <Button
                       size="lg"
                       className={cn(
-                        'relative h-18 w-18 rounded-full text-2xl shadow-xl transition-all duration-300 hover:scale-105 active:scale-95',
+                        'relative h-[72px] w-[72px] rounded-full text-2xl shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95',
                         isActive
                           ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
                           : 'bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 hover:from-rose-600 hover:via-pink-600 hover:to-amber-600 shadow-rose-500/30'
@@ -207,14 +221,14 @@ export default function Home() {
                     <span className="text-sm font-medium text-foreground/80">
                       {isActive ? 'در حال ضبط... برای توقف بزنید' : 'برای شروع سلفژ بزنید'}
                     </span>
-                    {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full">{error}</p>}
+                    {error && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-1 rounded-full">{error}</p>}
                     <AnimatePresence>
                       {savedMessage && (
                         <motion.p
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
-                          className="text-xs text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full"
+                          className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-full"
                         >
                           {savedMessage}
                         </motion.p>
@@ -237,34 +251,37 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Practice mode */}
+            <PracticeMode currentPitch={currentPitch} isActive={isActive} />
+
             {/* Reference notes */}
             <ReferenceNotes currentNote={currentPitch?.note} />
           </div>
 
-          {/* Right column - Stats & History */}
-          <div className="flex flex-col gap-5">
+          {/* Right column: Stats, Metronome, History */}
+          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
             {/* Stats card */}
-            <Card className="border border-border/50 shadow-lg shadow-black/5 bg-card/80 backdrop-blur-sm">
+            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm shadow-violet-500/25">
                     <TrendingUp className="h-3.5 w-3.5 text-white" />
                   </div>
                   <h3 className="text-sm font-bold">آمار جلسه</h3>
                 </div>
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="bg-gradient-to-b from-muted/60 to-muted/30 rounded-xl p-3 text-center border border-border/30">
+                  <div className="bg-gradient-to-b from-muted/50 to-muted/20 rounded-xl p-3 text-center border border-border/20">
                     <div className="text-2xl font-bold tabular-nums">{toPersianNum(stats.totalNotes)}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">کل نت‌ها</div>
                   </div>
-                  <div className="bg-gradient-to-b from-emerald-50/50 to-emerald-100/20 dark:from-emerald-950/20 dark:to-emerald-950/5 rounded-xl p-3 text-center border border-emerald-200/30 dark:border-emerald-800/20">
+                  <div className="bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 rounded-xl p-3 text-center border border-emerald-200/20 dark:border-emerald-800/20">
                     <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{toPersianNum(stats.accurateNotes)}</div>
-                    <div className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">نت‌های تمیز</div>
+                    <div className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">نت‌های تمیز</div>
                   </div>
                   <div className={cn('rounded-xl p-3 text-center border',
-                    stats.accuracy >= 80 ? 'bg-gradient-to-b from-emerald-50/50 to-emerald-100/20 dark:from-emerald-950/20 dark:to-emerald-950/5 border-emerald-200/30 dark:border-emerald-800/20' :
-                    stats.accuracy >= 50 ? 'bg-gradient-to-b from-yellow-50/50 to-yellow-100/20 dark:from-yellow-950/20 dark:to-yellow-950/5 border-yellow-200/30 dark:border-yellow-800/20' :
-                    'bg-gradient-to-b from-muted/60 to-muted/30 border-border/30'
+                    stats.accuracy >= 80 ? 'bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 border-emerald-200/20 dark:border-emerald-800/20' :
+                    stats.accuracy >= 50 ? 'bg-gradient-to-b from-yellow-50/50 to-yellow-100/10 dark:from-yellow-950/20 dark:to-yellow-950/5 border-yellow-200/20 dark:border-yellow-800/20' :
+                    'bg-gradient-to-b from-muted/50 to-muted/20 border-border/20'
                   )}>
                     <div className={cn(
                       'text-2xl font-bold tabular-nums',
@@ -281,7 +298,7 @@ export default function Home() {
                       <span>دقت کلی</span>
                       <span>{toPersianNum(stats.accuracy)}٪</span>
                     </div>
-                    <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <motion.div
                         className={cn(
                           'h-full rounded-full',
@@ -296,12 +313,15 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Metronome */}
+            <Metronome isTunerActive={isActive} />
+
             {/* Note history */}
-            <Card className="flex-1 border border-border/50 shadow-lg shadow-black/5 bg-card/80 backdrop-blur-sm min-h-[400px]">
+            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px]">
               <CardContent className="p-4 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center">
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-sm shadow-sky-500/25">
                       <Music2 className="h-3.5 w-3.5 text-white" />
                     </div>
                     <h3 className="text-sm font-bold">نت‌های شناسایی شده</h3>
@@ -322,7 +342,7 @@ export default function Home() {
 
         {/* Tips section */}
         <div className="mt-8 mb-4">
-          <Card className="border border-dashed border-border/50 bg-muted/10">
+          <Card className="border border-dashed border-border/30 bg-muted/5">
             <CardContent className="p-4 sm:p-5">
               <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
                 <span>💡</span> راهنمای استفاده
@@ -330,9 +350,9 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
-                  { icon: '🎯', text: 'اگر سنت نزدیک صفر باشد، نت شما تمیز و کوک اجرا شده' },
-                  { icon: '📊', text: 'فاصله سنت نشان‌دهنده میزان فالش بودن صداست' },
-                  { icon: '💾', text: 'نت‌ها به صورت خودکار ذخیره می‌شوند و در تاریخچه قابل مشاهده‌اند' },
+                  { icon: '🎯', text: 'حالت تمرین را فعال کنید و نت‌ها را به ترتیب بخوانید' },
+                  { icon: '🔊', text: 'صدای مرجع هر نت را بشنوید تا کوک آن را یاد بگیرید' },
+                  { icon: '⏱️', text: 'مترونوم را روشن کنید و با ریتم ثابت تمرین کنید' },
                 ].map((tip) => (
                   <div key={tip.icon} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
                     <span className="text-base shrink-0">{tip.icon}</span>
@@ -346,7 +366,7 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-border/50 bg-background/70 backdrop-blur-xl">
+      <footer className="mt-auto border-t border-border/30 bg-background/60 backdrop-blur-2xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>سلفژ آنلاین — تنظیم صدا و ارزیابی دقت سلفژ</span>
           <span>تحلیل صدا به صورت ریل‌تایم</span>

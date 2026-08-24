@@ -165,6 +165,13 @@ export class PitchDetector {
   }
 
   /**
+   * Get the analyser node for visualization (e.g., waveform)
+   */
+  getAnalyserNode(): AnalyserNode | null {
+    return this.analyser;
+  }
+
+  /**
    * Start listening to the microphone and detecting pitch
    */
   async start(

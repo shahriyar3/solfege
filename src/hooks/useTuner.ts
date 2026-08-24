@@ -12,6 +12,7 @@ interface TunerState {
   volume: number;
   error: string | null;
   noteHistory: PitchResult[];
+  analyserNode: AnalyserNode | null;
   stats: {
     totalNotes: number;
     accurateNotes: number;
@@ -26,13 +27,14 @@ export function useTuner() {
     volume: 0,
     error: null,
     noteHistory: [],
+    analyserNode: null,
     stats: { totalNotes: 0, accurateNotes: 0, accuracy: 0 },
   });
 
   const detectorRef = useRef<PitchDetector | null>(null);
   const lastNoteRef = useRef<string | null>(null);
   const lastNoteTimeRef = useRef<number>(0);
-  const noteDebounceMs = 300; // minimum time between same-note entries
+  const noteDebounceMs = 300;
 
   const handlePitch = useCallback((result: PitchResult | null) => {
     setState((prev) => {
@@ -49,7 +51,7 @@ export function useTuner() {
         lastNoteRef.current = noteKey;
         lastNoteTimeRef.current = now;
 
-        const newHistory = [...prev.noteHistory, result].slice(-100); // keep last 100
+        const newHistory = [...prev.noteHistory, result].slice(-100);
         const totalNotes = newHistory.length;
         const accurateNotes = newHistory.filter((n) => n.isAccurate).length;
 
@@ -84,13 +86,18 @@ export function useTuner() {
       });
 
       await detectorRef.current.start(handlePitch, handleVolume);
-      setState((prev) => ({ ...prev, isActive: true }));
+
+      // Expose analyser node after start
+      const analyserNode = detectorRef.current.getAnalyserNode() ?? null;
+
+      setState((prev) => ({ ...prev, isActive: true, analyserNode }));
     } catch (err) {
       console.error('Microphone error:', err);
       setState((prev) => ({
         ...prev,
         error: 'دسترسی به میکروفون رد شد. لطفاً اجازه دسترسی بدهید.',
         isActive: false,
+        analyserNode: null,
       }));
     }
   }, [handlePitch, handleVolume]);
@@ -105,6 +112,7 @@ export function useTuner() {
       isActive: false,
       currentPitch: null,
       volume: 0,
+      analyserNode: null,
     }));
   }, []);
 
@@ -118,7 +126,6 @@ export function useTuner() {
     }));
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (detectorRef.current) {

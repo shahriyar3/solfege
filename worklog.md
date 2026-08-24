@@ -5,85 +5,118 @@ Task ID: 1
 Agent: Main
 Task: Real-time Solfège Pitch Detection Web Application
 
-## Current Project Status
-**Phase: Initial Development Complete - Ready for Testing & Enhancement**
+## Completed - Phase 1
+All initial features built and verified. See below for Phase 2 additions.
 
-The application is a fully functional real-time Persian solfège tuner built with Next.js 16, TypeScript, and Tailwind CSS 4. Users can sing notes and see real-time feedback on pitch accuracy measured in cents.
+---
+Task ID: 2
+Agent: WebDev Review - Phase 2 Enhancement
+Task: QA, bug fixes, styling polish, and 4 major new features
 
-## Completed Features
+## Current Project Status Assessment
+**Phase: Feature-Rich Application - All Phase 1 & 2 goals complete**
 
-### 1. Pitch Detection Engine (`src/lib/pitch-detection.ts`)
-- Autocorrelation-based pitch detection algorithm for monophonic audio
-- Frequency-to-note mapping with Persian solfège names (دو، رِ، می، فا، سل، لا، سی)
-- Cent deviation calculation (-50 to +50 range)
-- Configurable parameters (FFT size, frequency range, accuracy threshold)
-- Web Audio API integration with real-time AnalyserNode processing
-- Parabolic interpolation for sub-sample precision
+The app is now a comprehensive Persian solfège practice tool with real-time pitch detection, practice mode, audio playback, waveform visualization, and metronome. All lint rules pass, no console errors, HTTP 200 confirmed on desktop and mobile.
 
-### 2. UI Components
-- **TunerGauge** (`src/components/tuner-gauge.tsx`): Main visual tuner with:
-  - Animated needle with spring physics (Framer Motion)
-  - Color-coded accuracy zones (green/yellow/orange/red)
-  - Volume indicator bar
-  - Large solfège name display with animations
-  - Persian feedback text (عالی/خوب/قابل قبول/فالش)
-  - Musical convention LTR gauge direction (left=flat, right=sharp)
-  - Pulse animation on perfect pitch
+## Current Goals / Completed Modifications
 
-- **NoteHistory** (`src/components/note-history.tsx`): Real-time note log with:
-  - Scrollable list of detected notes
-  - Color-coded cents badges with icons
-   - Mini cents deviation bars per note
-   - AnimatePresence for smooth entry/exit
+### QA Results (Task 2-a, 2-b)
+- ✅ ESLint: zero errors, zero warnings
+- ✅ Browser console: no errors (only React DevTools info + HMR connected)
+- ✅ HTTP 200 on desktop (1440x900) and mobile (iPhone 14)
+- ✅ VLM analysis confirms all new features visible
+- ✅ Responsive layout verified on both viewports
 
-- **ReferenceNotes** (`src/components/reference-notes.tsx`): Color-coded solfège reference card
-- **SessionHistory** (`src/components/session-history.tsx`): Modal for viewing past sessions
+### New Feature: Practice Mode (`src/components/practice-mode.tsx`)
+- Target note display with large gradient text per note (7 color-coded solfège notes)
+- 3 difficulty levels: آسان (±20 cents), متوسط (±10 cents), سخت (±5 cents)
+- Octave selector (3, 4, 5)
+- Auto-detection: when singing matches target note within threshold, auto-advances
+- Scoring system: points, current streak, best streak
+- Progress dots showing position in scale
+- Reference audio playback button (play correct pitch)
+- Previous/Next navigation controls
+- Enter card: click to activate, exit button to close
 
-### 3. Backend API
-- `POST /api/solfeggio/sessions` - Create new practice session
-- `GET /api/solfeggio/sessions` - List all sessions with notes
-- `GET /api/solfeggio/sessions/[id]` - Get single session details
-- `DELETE /api/solfeggio/sessions/[id]` - Delete a session
-- `POST /api/solfeggio/notes` - Add detected note to session
-- `GET /api/solfeggio/notes?sessionId=xxx` - Get notes for session
+### New Feature: Audio Reference Playback (`src/lib/audio-playback.ts`)
+- Web Audio API oscillator-based note playback
+- ADSR envelope for pleasant sine wave tone
+- `playNote(frequency, duration)` - plays any frequency with smooth attack/release
+- `playClick(frequency, duration)` - short click for metronome
+- `getSolfeggioScale(octave)` - returns all 7 natural notes for a given octave
+- Utility functions for note ranges and frequency calculations
+- Reference notes card now **clickable** to hear each note
+- Sharp notes (دو#, رِ#, فا#, سل#, لا#) also playable
 
-### 4. Database (Prisma + SQLite)
-- `SolfeggioSession` model with name and timestamps
-- `SolfeggioNote` model with noteName, solfege, octave, frequency, cents, isAccurate
-- Cascade delete on session removal
+### New Feature: Waveform Visualization (`src/components/waveform-visualizer.tsx`)
+- Real-time waveform canvas drawn from AnalyserNode data
+- Gradient stroke (rose → amber → rose)
+- Glow layer effect behind main line
+- Dashed center line reference
+- Properly handles canvas DPI scaling for retina displays
+- Window resize handling
+- Clean idle state (flat muted line when not recording)
+- AnalyserNode exposed from PitchDetector via `getAnalyserNode()` method
+- Ref-based state sync to avoid React 19 lint issues
 
-### 5. Main Page (`src/app/page.tsx`)
-- Full RTL Persian layout
-- Gradient mic button with pulse animation when active
-- Auto-save notes every 5 seconds during recording
-- Manual save button
-- Persian numeral conversion for stats
-- 3-column responsive grid (tuner + stats + history)
-- Session history modal
-- Tips/guide section
-- Sticky header with blur effect
-- Sticky footer
+### New Feature: Metronome (`src/components/metronome.tsx`)
+- 4/4 time signature with visual beat indicators
+- First beat accent (higher pitch click at 1200Hz, others at 800Hz)
+- BPM control: +/- buttons, range 30-220
+- Quick preset buttons: 60, 80, 100, 120 BPM
+- Elapsed time counter (MM:SS format)
+- Animated beat dots (scale + color pulse)
+- Start/Stop/Reset controls
+- Disabled during tuner active (prevents audio conflict)
+
+### Styling Improvements (Task 3-e)
+- **Layout**: Changed from 3-col to 12-col grid (7+5 split) for better balance
+- **Cards**: Reduced border opacity (`border-border/40`), softer shadows (`shadow-black/[0.03]`)
+- **Header**: Upgraded to `backdrop-blur-2xl` with `bg-background/60`
+- **Footer**: Matching blur treatment
+- **Background**: Subtle gradient `from-background via-background to-muted/20`
+- **Logo icon**: Added `whileHover` animation (scale + rotate)
+- **Mic button**: Larger 72x72px with `shadow-2xl`
+- **Reference notes**: Each note has unique color scheme, hover/active animations, sharp notes in muted style
+- **Dark mode**: All components use proper dark: variants
+- **Icon badges**: Each section header has gradient icon (violet, sky, emerald, rose)
+- **Tips section**: Updated with new feature descriptions
+
+## File Manifest (New/Modified in Phase 2)
+- `src/lib/audio-playback.ts` - **NEW** - Audio playback utilities
+- `src/components/waveform-visualizer.tsx` - **NEW** - Real-time waveform canvas
+- `src/components/practice-mode.tsx` - **NEW** - Practice mode with scoring
+- `src/components/metronome.tsx` - **NEW** - Metronome with timer
+- `src/components/reference-notes.tsx` - **MODIFIED** - Added click-to-play, new colors
+- `src/components/tuner-gauge.tsx` - Unchanged
+- `src/components/note-history.tsx` - Unchanged
+- `src/components/session-history.tsx` - Unchanged
+- `src/hooks/useTuner.ts` - **MODIFIED** - Added analyserNode to state
+- `src/lib/pitch-detection.ts` - **MODIFIED** - Added getAnalyserNode() method
+- `src/app/page.tsx` - **MODIFIED** - Integrated all new components
+- `src/app/layout.tsx` - Unchanged
+- `prisma/schema.prisma` - Unchanged
 
 ## Verification Results
-- ✅ Server returns HTTP 200
-- ✅ ESLint passes with no errors
-- ✅ VLM screenshot analysis confirms all UI elements render correctly
-- ✅ RTL layout is correct
-- ✅ Responsive design confirmed
+- ✅ `bun run lint` - 0 errors, 0 warnings
+- ✅ HTTP 200 on desktop (1440x900)
+- ✅ HTTP 200 on mobile (iPhone 14)
+- ✅ No browser console errors
+- ✅ VLM screenshot confirms: practice mode visible, metronome visible, waveform visible, balanced layout
 
 ## Unresolved Issues / Risks
-1. **Microphone access**: The app requires getUserMedia permission - in sandbox/preview environments this may not be testable
-2. **Pitch detection accuracy**: The autocorrelation algorithm works well for clear monophonic singing but may struggle with:
-   - Noisy environments
-   - Very low or very high frequencies
-   - Harmonically complex sounds
-3. **Mobile Safari**: Web Audio API works but may need specific handling for iOS
-4. **Dark mode**: Color scheme works but some subtle adjustments may be needed
+1. **Microphone access**: Cannot be tested in sandbox - requires real browser with mic permission
+2. **AudioContext restrictions**: Some browsers require user gesture before creating AudioContext - the playNote function creates a new context each time which works but isn't optimal
+3. **Metronome + Tuner conflict**: Metronome start button is disabled when tuner is active to avoid audio conflicts, but ideally they could work together
+4. **Practice mode auto-advance**: Uses 300ms debounce which may feel slow for fast singers
+5. **No sharps in practice mode**: Currently only natural notes (Do Re Mi Fa Sol La Si) in practice mode
 
 ## Priority Recommendations for Next Phase
-1. Add a target note practice mode (show which note to sing and evaluate)
-2. Add audio playback for reference notes (play the correct pitch)
-3. Improve mobile layout and touch interactions
-4. Add a practice timer / metronome feature
-5. Consider adding a waveform visualization
-6. Add difficulty levels and scoring system
+1. **Interval training mode**: Practice specific intervals (major third, perfect fifth, etc.)
+2. **Sheet music display**: Show simple musical notation for practice exercises
+3. **Performance history charts**: Weekly/monthly accuracy trends using recharts
+4. **Voice type detection**: Detect and display user's vocal range
+5. **Sharps/flats in practice mode**: Add chromatic scale practice option
+6. **Export session data**: Download practice history as CSV/PDF
+7. **Audio feedback sounds**: Play a pleasant chime on correct note, subtle buzz on wrong note
+8. **PWA support**: Make the app installable on mobile devices
