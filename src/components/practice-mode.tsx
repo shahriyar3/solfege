@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getSolfeggioScale, playNote } from '@/lib/audio-playback';
+import { getSolfeggioScale, getChromaticScale, playNote, playCorrectChime } from '@/lib/audio-playback';
 import type { PitchResult } from '@/lib/pitch-detection';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -77,9 +77,12 @@ interface PracticeModeProps {
   isActive: boolean;
 }
 
+type ScaleType = 'natural' | 'chromatic';
+
 export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [scaleType, setScaleType] = useState<ScaleType>('natural');
   const [targetIndex, setTargetIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -91,7 +94,7 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
   const detectedRef = useRef(false);
   const playRefRef = useRef<() => void>(() => {});
 
-  const scale = getSolfeggioScale(practiceOctave);
+  const scale = scaleType === 'chromatic' ? getChromaticScale(practiceOctave) : getSolfeggioScale(practiceOctave);
   const targetNote = scale[targetIndex];
   const config = DIFFICULTY_CONFIG[difficulty];
 
@@ -104,8 +107,8 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
 
     if (matchesNote && withinThreshold) {
       detectedRef.current = true;
-      // Use queueMicrotask to avoid synchronous setState in effect
       queueMicrotask(() => {
+        playCorrectChime();
         setNoteResult('correct');
         setScore((s) => s + 1);
         setAttemptCount((a) => a + 1);
@@ -170,6 +173,10 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
           <div className="flex-1">
             <h3 className="text-sm font-bold">حالت تمرین</h3>
             <p className="text-xs text-muted-foreground mt-0.5">نت‌ها را به ترتیب بخوانید و امتیاز بگیرید</p>
+            <div className="flex gap-1.5 mt-1.5">
+              <Badge variant="outline" className="text-[9px] h-4">نت‌های طبیعی</Badge>
+              <Badge variant="outline" className="text-[9px] h-4 text-amber-600 border-amber-300/50">کروماتیک</Badge>
+            </div>
           </div>
           <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-rose-500 transition-colors" />
         </CardContent>
@@ -191,6 +198,24 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-4">
+        {/* Scale type toggle */}
+        <div className="flex gap-2 bg-muted/20 rounded-lg p-1">
+          <button
+            onClick={() => { setScaleType('natural'); setTargetIndex(0); detectedRef.current = false; setNoteResult(null); }}
+            className={cn(
+              'flex-1 py-1.5 rounded-md text-xs font-medium transition-all',
+              scaleType === 'natural' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >طبیعی</button>
+          <button
+            onClick={() => { setScaleType('chromatic'); setTargetIndex(0); detectedRef.current = false; setNoteResult(null); }}
+            className={cn(
+              'flex-1 py-1.5 rounded-md text-xs font-medium transition-all',
+              scaleType === 'chromatic' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >کروماتیک</button>
+        </div>
+
         {/* Difficulty selector */}
         <div className="flex gap-2">
           {(Object.entries(DIFFICULTY_CONFIG) as [Difficulty, typeof DIFFICULTY_CONFIG.easy][]).map(([key, cfg]) => (

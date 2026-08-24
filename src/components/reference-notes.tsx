@@ -83,9 +83,9 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
             { note: 'G#', solfege: 'سل#', freq: scale[4].frequency * Math.pow(2, 1/12) },
             { note: 'A#', solfege: 'لا#', freq: scale[5].frequency * Math.pow(2, 1/12) },
             { note: null, solfege: '', freq: 0 },
-          ].map((n) => (
+          ].map((n, i) => (
             <div
-              key={n.note || 'empty'}
+              key={n.note || `empty-${i}`}
               className={cn(
                 'flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200',
                 n.note

@@ -120,3 +120,14 @@ The app is now a comprehensive Persian solfège practice tool with real-time pit
 6. **Export session data**: Download practice history as CSV/PDF
 7. **Audio feedback sounds**: Play a pleasant chime on correct note, subtle buzz on wrong note
 8. **PWA support**: Make the app installable on mobile devices
+
+---
+Task ID: 3-range
+Agent: sub-agent
+Task: Voice range detector component
+
+Work Log:
+- Created voice-range.tsx
+
+Stage Summary:
+- New component for tracking and displaying vocal range

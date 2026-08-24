@@ -11,6 +11,9 @@ import { SessionHistory } from '@/components/session-history';
 import { ReferenceNotes } from '@/components/reference-notes';
 import { WaveformVisualizer } from '@/components/waveform-visualizer';
 import { PracticeMode } from '@/components/practice-mode';
+import { IntervalTrainer } from '@/components/interval-trainer';
+import { VoiceRange } from '@/components/voice-range';
+import { PerformanceChart } from '@/components/performance-chart';
 import { Metronome } from '@/components/metronome';
 import { cn } from '@/lib/utils';
 import {
@@ -256,6 +259,9 @@ export default function Home() {
 
             {/* Reference notes */}
             <ReferenceNotes currentNote={currentPitch?.note} />
+
+            {/* Interval trainer */}
+            <IntervalTrainer currentPitch={currentPitch} isActive={isActive} />
           </div>
 
           {/* Right column: Stats, Metronome, History */}
@@ -313,6 +319,9 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Voice range */}
+            <VoiceRange currentPitch={currentPitch} isActive={isActive} noteHistory={noteHistory} />
+
             {/* Metronome */}
             <Metronome isTunerActive={isActive} />
 
@@ -340,6 +349,11 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Performance chart */
+        <div className="mb-4">
+          <PerformanceChart />
+        </div>
+
         {/* Tips section */}
         <div className="mt-8 mb-4">
           <Card className="border border-dashed border-border/30 bg-muted/5">
@@ -350,9 +364,10 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
-                  { icon: '🎯', text: 'حالت تمرین را فعال کنید و نت‌ها را به ترتیب بخوانید' },
-                  { icon: '🔊', text: 'صدای مرجع هر نت را بشنوید تا کوک آن را یاد بگیرید' },
-                  { icon: '⏱️', text: 'مترونوم را روشن کنید و با ریتم ثابت تمرین کنید' },
+                  { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با سه سطح دشواری' },
+                  { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
+                  { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
+                  { icon: '🎤', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
                 ].map((tip) => (
                   <div key={tip.icon} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
                     <span className="text-base shrink-0">{tip.icon}</span>

@@ -129,3 +129,73 @@ export function playClick(frequency: number = 1000, duration: number = 0.05): { 
     },
   };
 }
+
+/** Play a pleasant chime sound for correct answer feedback */
+export function playCorrectChime(): { stop: () => void } {
+  const ctx = new AudioContext();
+  const now = ctx.currentTime;
+
+  // Two harmonious tones (C5 + E5)
+  const freqs = [523.25, 659.25];
+  const oscs = freqs.map((freq) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    return osc;
+  });
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0, now);
+  masterGain.gain.linearRampToValueAtTime(0.2, now + 0.02);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+  oscs.forEach((osc) => {
+    osc.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.6);
+  });
+  masterGain.connect(ctx.destination);
+
+  return {
+    stop: () => {
+      oscs.forEach((o) => { try { o.stop(); } catch (e) { /* */ } });
+    },
+  };
+}
+
+/** Play a subtle buzz for wrong answer feedback */
+export function playWrongBuzz(): { stop: () => void } {
+  const ctx = new AudioContext();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, now);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.25);
+
+  return {
+    stop: () => { try { osc.stop(); } catch (e) { /* */ } },
+  };
+}
+
+/** Get chromatic scale (all 12 notes) for a given octave */
+export function getChromaticScale(baseOctave: number = 4): NoteInfo[] {
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const SOLFEGE = ['دو', 'دو#', 'رِ', 'رِ#', 'می', 'فا', 'فا#', 'سل', 'سل#', 'لا', 'لا#', 'سی'];
+  return NOTE_NAMES.map((n, i) => {
+    const midi = (baseOctave + 1) * 12 + i;
+    return {
+      note: n,
+      solfege: SOLFEGE[i],
+      octave: baseOctave,
+      frequency: Math.round(midiToFrequency(midi) * 100) / 100,
+    };
+  });
+}
