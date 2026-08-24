@@ -1,0 +1,106 @@
+'use client';
+
+import { PitchResult } from '@/lib/pitch-detection';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Music, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+
+interface NoteHistoryProps {
+  notes: PitchResult[];
+  stats: {
+    totalNotes: number;
+    accurateNotes: number;
+    accuracy: number;
+  };
+}
+
+function getCentsStyle(cents: number) {
+  const abs = Math.abs(cents);
+  if (abs <= 5) return { color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: CheckCircle };
+  if (abs <= 10) return { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: AlertTriangle };
+  return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', icon: XCircle };
+}
+
+export function NoteHistory({ notes, stats }: NoteHistoryProps) {
+  const reversedNotes = [...notes].reverse();
+
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      {/* Note list */}
+      <div className="flex-1 min-h-0">
+        {notes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8 gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
+              <Music className="h-6 w-6 opacity-30" />
+            </div>
+            <p className="text-sm">هنوز نت‌ای ثبت نشده</p>
+            <p className="text-xs opacity-50 text-center">روی میکروفون بزنید و شروع به سلفژ کنید</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[280px] sm:h-[340px]">
+            <div className="flex flex-col gap-1 px-0.5">
+              <AnimatePresence initial={false}>
+                {reversedNotes.map((note, i) => {
+                  const style = getCentsStyle(note.cents);
+                  const Icon = style.icon;
+                  return (
+                    <motion.div
+                      key={`${note.note}${note.octave}-${notes.length - i}`}
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      transition={{ duration: 0.2 }}
+                      className={cn(
+                        'flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors',
+                        i === 0 ? 'bg-muted/60' : 'hover:bg-muted/30'
+                      )}
+                    >
+                      {/* Note name */}
+                      <div className="flex items-center gap-1.5 min-w-[70px]">
+                        <span className={cn('text-sm font-bold', style.color)}>
+                          {note.solfege}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {note.note}{note.octave}
+                        </span>
+                      </div>
+
+                      {/* Cents bar */}
+                      <div className="flex-1 flex items-center">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full relative overflow-hidden" dir="ltr">
+                          <div className="absolute top-0 left-1/2 w-px h-full bg-foreground/15" />
+                          <div
+                            className={cn(
+                              'absolute top-0 h-full rounded-full',
+                              Math.abs(note.cents) <= 5 ? 'bg-emerald-500' :
+                              Math.abs(note.cents) <= 10 ? 'bg-yellow-500' :
+                              Math.abs(note.cents) <= 25 ? 'bg-orange-500' : 'bg-red-500'
+                            )}
+                            style={{
+                              width: `${Math.min(Math.abs(note.cents) * 2, 50)}%`,
+                              left: note.cents < 0 ? '50%' : undefined,
+                              right: note.cents >= 0 ? '50%' : undefined,
+                              transform: note.cents < 0 ? 'translateX(-100%)' : undefined,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Cents badge */}
+                      <Badge variant="outline" className={cn('text-[10px] font-mono px-1.5 py-0 h-5 gap-0.5', style.bg, style.border, style.color)}>
+                        <Icon className="h-2.5 w-2.5" />
+                        {note.cents > 0 ? '+' : ''}{note.cents}
+                      </Badge>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+    </div>
+  );
+}
