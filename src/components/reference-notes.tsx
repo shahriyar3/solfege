@@ -65,7 +65,8 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
                   NOTE_COLORS[n.note],
                   isActive && 'ring-2 ring-foreground/30 scale-110 shadow-lg'
                 )}
-                whileTap={{ scale: 0.92 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <span className="text-lg font-extrabold leading-tight">{n.solfege}</span>
                 <span className="text-[10px] opacity-60 font-mono">{n.note}4</span>
@@ -84,7 +85,7 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
             { note: 'A#', solfege: 'لا#', freq: scale[5].frequency * Math.pow(2, 1/12) },
             { note: null, solfege: '', freq: 0 },
           ].map((n, i) => (
-            <div
+            <motion.div
               key={n.note || `empty-${i}`}
               className={cn(
                 'flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200',
@@ -97,10 +98,12 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
                   : 'opacity-0 pointer-events-none'
               )}
               onClick={() => n.note && handlePlay(n.freq)}
+              whileHover={n.note ? { scale: 1.05 } : undefined}
+              whileTap={n.note ? { scale: 0.95 } : undefined}
             >
               {n.solfege && <span className="font-medium">{n.solfege}</span>}
               {n.note && <span className="font-mono text-[10px] opacity-60">{n.note}</span>}
-            </div>
+            </motion.div>
           ))}
         </div>
       </CardContent>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getNaturalNotes, playNote } from '@/lib/audio-playback';
+import { getNaturalNotes, playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import type { PitchResult } from '@/lib/pitch-detection';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -197,6 +197,7 @@ export function IntervalTrainer({ currentPitch, isActive }: IntervalTrainerProps
     if (currentPitch.note === tName && currentPitch.octave === tOct && Math.abs(currentPitch.cents) <= 20) {
       detected.current = true;
       queueMicrotask(() => {
+        playCorrectSound();
         setResult('correct');
         setResultCents(currentPitch.cents);
         setScore((s) => s + 1);
@@ -235,6 +236,7 @@ export function IntervalTrainer({ currentPitch, isActive }: IntervalTrainerProps
   }, [catId, avail, intIdx, root.frequency, playRootNote]);
 
   const reveal = useCallback(() => {
+    playWrongSound();
     setRevealed(true);
     setResult('wrong');
     setAttempts((a) => a + 1);

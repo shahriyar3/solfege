@@ -18,9 +18,9 @@ interface NoteHistoryProps {
 
 function getCentsStyle(cents: number) {
   const abs = Math.abs(cents);
-  if (abs <= 5) return { color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: CheckCircle };
-  if (abs <= 10) return { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: AlertTriangle };
-  return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', icon: XCircle };
+  if (abs <= 5) return { color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', leftBorder: 'border-l-emerald-500', icon: CheckCircle };
+  if (abs <= 10) return { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', leftBorder: 'border-l-yellow-500', icon: AlertTriangle };
+  return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', leftBorder: 'border-l-red-500', icon: XCircle };
 }
 
 export function NoteHistory({ notes, stats }: NoteHistoryProps) {
@@ -53,8 +53,9 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
                       exit={{ opacity: 0, x: 15 }}
                       transition={{ duration: 0.2 }}
                       className={cn(
-                        'flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors',
-                        i === 0 ? 'bg-muted/60' : 'hover:bg-muted/30'
+                        'flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors border-l-2',
+                        style.leftBorder,
+                        i === 0 ? 'bg-muted/60' : i % 2 === 1 ? 'bg-muted/20' : 'hover:bg-muted/30'
                       )}
                     >
                       {/* Note name */}
@@ -69,7 +70,7 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
 
                       {/* Cents bar */}
                       <div className="flex-1 flex items-center">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full relative overflow-hidden" dir="ltr">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full relative overflow-hidden" dir="ltr" style={{ height: '6px' }}>
                           <div className="absolute top-0 left-1/2 w-px h-full bg-foreground/15" />
                           <div
                             className={cn(

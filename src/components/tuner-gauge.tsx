@@ -72,7 +72,7 @@ export function TunerGauge({
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 w-full">
+    <div className="flex flex-col items-center gap-5 w-full select-none">
       {/* Volume / waveform indicator bar */}
       <div className="w-full max-w-lg">
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -86,21 +86,30 @@ export function TunerGauge({
 
       {/* Main note display */}
       <div className="flex flex-col items-center gap-1.5">
-        <AnimatePresence mode="wait">
-          <motion.div
-            className={cn(
-              'text-8xl sm:text-9xl font-black tabular-nums leading-none select-none',
-              getTextColor()
-            )}
-            key={isActive ? solfege : 'idle'}
-            initial={{ scale: 0.6, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: -10 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          >
-            {solfege}
-          </motion.div>
-        </AnimatePresence>
+        <div className="relative">
+          {absCents <= 5 && isActive && (
+            <motion.div
+              className="absolute inset-0 rounded-3xl bg-emerald-500/20 blur-xl"
+              animate={{ opacity: [0.4, 0.8, 0.4] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              className={cn(
+                'relative text-8xl sm:text-9xl font-black tabular-nums leading-none select-none',
+                getTextColor()
+              )}
+              key={isActive ? solfege : 'idle'}
+              initial={{ scale: 0.6, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: -10 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            >
+              {solfege}
+            </motion.div>
+          </AnimatePresence>
+        </div>
         <div className="flex items-center gap-2 text-muted-foreground mt-1">
           <span className="text-base font-mono font-medium">{noteName}{octave}</span>
           <span className="w-px h-3 bg-border" />
@@ -112,14 +121,12 @@ export function TunerGauge({
       <div className="w-full max-w-lg px-1">
         <div className="relative h-20 sm:h-24">
           {/* Background track */}
-          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-4 bg-muted/80 rounded-full overflow-hidden">
-            {/* Color zones */}
-            <div className="absolute top-0 h-full w-[10%] right-[45%] bg-emerald-500/15" />
-            <div className="absolute top-0 h-full w-[10%] right-[35%] bg-yellow-500/10" />
-            <div className="absolute top-0 h-full w-[10%] right-[55%] bg-yellow-500/10" />
-            <div className="absolute top-0 h-full w-[15%] right-[0%] bg-red-500/8" />
-            <div className="absolute top-0 h-full w-[15%] right-[85%] bg-red-500/8" />
-          </div>
+          <div
+            className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-4 rounded-full overflow-hidden"
+            style={{
+              background: 'linear-gradient(to left, rgba(239,68,68,0.25) 0%, rgba(239,68,68,0.15) 20%, rgba(234,179,8,0.12) 35%, rgba(16,185,129,0.15) 50%, rgba(234,179,8,0.12) 65%, rgba(239,68,68,0.15) 80%, rgba(239,68,68,0.25) 100%)',
+            }}
+          />
 
           {/* Scale marks - force LTR direction for musical convention */}
           <div className="absolute inset-0" dir="ltr">
@@ -158,7 +165,7 @@ export function TunerGauge({
             {/* Needle / indicator */}
             <motion.div
               className={cn(
-                'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full shadow-lg transition-colors duration-150 z-10',
+                'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.2)] transition-colors duration-150 z-10',
                 getColor(),
                 getGlowColor(),
               )}
@@ -190,7 +197,7 @@ export function TunerGauge({
       </div>
 
       {/* Accuracy feedback */}
-      <div className="flex flex-col items-center gap-1.5 h-16">
+      <div className="flex flex-col items-center gap-1.5">
         {isActive ? (
           <>
             <AnimatePresence mode="wait">

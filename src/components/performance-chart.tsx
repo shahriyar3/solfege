@@ -43,6 +43,33 @@ export function PerformanceChart() {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
+    function processChartData(data: SessionData[]) {
+      const noteMap = new Map<string, { count: number; accurate: number; totalCents: number }>();
+
+      data.forEach((s) => {
+        s.notes.forEach((n) => {
+          const key = n.solfege || n.noteName;
+          const existing = noteMap.get(key) || { count: 0, accurate: 0, totalCents: 0 };
+          existing.count += 1;
+          if (n.isAccurate) existing.accurate += 1;
+          existing.totalCents += Math.abs(n.cents);
+          noteMap.set(key, existing);
+        });
+      });
+
+      const sorted = Array.from(noteMap.entries())
+        .map(([name, d]) => ({
+          name,
+          count: d.count,
+          accurate: d.accurate,
+          accuracy: d.count > 0 ? Math.round((d.accurate / d.count) * 100) : 0,
+          avgCents: Math.round(d.totalCents / d.count),
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      setChartData(sorted.slice(0, 12));
+    }
+
     fetch('/api/solfeggio/sessions')
       .then((r) => r.json())
       .then((data) => {
@@ -50,33 +77,6 @@ export function PerformanceChart() {
         processChartData(data);
       });
   }, []);
-
-  const processChartData = (data: SessionData[]) => {
-    const noteMap = new Map<string, { count: number; accurate: number; totalCents: number }>();
-
-    data.forEach((s) => {
-      s.notes.forEach((n) => {
-        const key = n.solfege || n.noteName;
-        const existing = noteMap.get(key) || { count: 0, accurate: 0, totalCents: 0 };
-        existing.count += 1;
-        if (n.isAccurate) existing.accurate += 1;
-        existing.totalCents += Math.abs(n.cents);
-        noteMap.set(key, existing);
-      });
-    });
-
-    const sorted = Array.from(noteMap.entries())
-      .map(([name, data]) => ({
-        name,
-        count: data.count,
-        accurate: data.accurate,
-        accuracy: data.count > 0 ? Math.round((data.accurate / data.count) * 100) : 0,
-        avgCents: Math.round(data.totalCents / data.count),
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    setChartData(sorted.slice(0, 12));
-  };
 
   const exportCSV = () => {
     if (sessions.length === 0) return;
@@ -214,6 +214,7 @@ export function PerformanceChart() {
                     ))}
                   </Bar>
                 </BarChart>
+              </ResponsiveContainer>
             </div>
             {/* Per-note detail */}
             <div className="mt-4 space-y-1">

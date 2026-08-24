@@ -5,12 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getSolfeggioScale, getChromaticScale, playNote, playCorrectChime } from '@/lib/audio-playback';
+import { getSolfeggioScale, getChromaticScale, playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
 import type { PitchResult } from '@/lib/pitch-detection';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Play,
-  SkipForward,
   RotateCcw,
   Trophy,
   Target,
@@ -20,13 +18,6 @@ import {
 } from 'lucide-react';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
-
-interface PracticeNote {
-  note: string;
-  solfege: string;
-  octave: number;
-  frequency: number;
-}
 
 const DIFFICULTY_CONFIG: Record<Difficulty, {
   label: string;
@@ -64,11 +55,16 @@ const DIFFICULTY_CONFIG: Record<Difficulty, {
 
 const NOTE_COLORS: Record<string, string> = {
   'C': 'from-red-400 to-rose-500',
+  'C#': 'from-rose-400 to-pink-500',
   'D': 'from-orange-400 to-amber-500',
+  'D#': 'from-amber-400 to-yellow-500',
   'E': 'from-yellow-400 to-yellow-500',
   'F': 'from-green-400 to-emerald-500',
+  'F#': 'from-emerald-400 to-teal-500',
   'G': 'from-teal-400 to-cyan-500',
+  'G#': 'from-cyan-400 to-sky-500',
   'A': 'from-sky-400 to-blue-500',
+  'A#': 'from-blue-400 to-indigo-500',
   'B': 'from-violet-400 to-purple-500',
 };
 
@@ -108,7 +104,7 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
     if (matchesNote && withinThreshold) {
       detectedRef.current = true;
       queueMicrotask(() => {
-        playCorrectChime();
+        playCorrectSound();
         setNoteResult('correct');
         setScore((s) => s + 1);
         setAttemptCount((a) => a + 1);
@@ -138,6 +134,7 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
   }, [targetNote.frequency]);
 
   const handleNext = useCallback(() => {
+    playWrongSound();
     detectedRef.current = false;
     setNoteResult(null);
     setAttemptCount((a) => a + 1);
@@ -299,12 +296,12 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
         </div>
 
         {/* Progress dots */}
-        <div className="flex justify-center gap-1.5">
-          {scale.map((n, i) => (
+        <div className={cn('flex justify-center', scale.length > 7 ? 'gap-1' : 'gap-1.5')}>{scale.map((n, i) => (
             <div
               key={i}
               className={cn(
-                'h-2 w-2 rounded-full transition-all duration-300',
+                'rounded-full transition-all duration-300',
+                scale.length > 7 ? 'h-1.5 w-1.5' : 'h-2 w-2',
                 i === targetIndex
                   ? 'bg-rose-500 scale-125'
                   : i < targetIndex

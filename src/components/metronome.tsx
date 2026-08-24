@@ -76,22 +76,22 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
         </div>
 
         {/* Beat indicators */}
-        <div className="flex justify-center gap-3 mb-4">
+        <div className="flex justify-center gap-4 mb-4">
           {[0, 1, 2, 3].map((i) => (
             <motion.div
               key={i}
               className={cn(
-                'h-4 w-4 rounded-full transition-colors duration-75',
+                'h-5 w-5 rounded-full transition-colors duration-75',
                 isPlaying && i === beat
                   ? i === 0
-                    ? 'bg-rose-500 shadow-md shadow-rose-500/50'
-                    : 'bg-emerald-500 shadow-md shadow-emerald-500/50'
+                    ? 'bg-rose-500 shadow-lg shadow-rose-500/50'
+                    : 'bg-emerald-500 shadow-lg shadow-emerald-500/50'
                   : isPlaying
                     ? 'bg-muted'
                     : 'bg-muted/60'
               )}
-              animate={isPlaying && i === beat ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-              transition={{ duration: 0.15 }}
+              animate={isPlaying && i === beat ? { scale: [1, 1.4, 1], y: [0, -3, 0] } : { scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             />
           ))}
         </div>
@@ -122,19 +122,23 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-2">
-          <Button
-            variant={isPlaying ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => isPlaying ? stop() : setIsPlaying(true)}
-            disabled={isTunerActive && !isPlaying}
-            className={cn(
-              'gap-1.5 text-xs h-8',
-              isPlaying && 'bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25'
-            )}
+          <motion.div
+            whileTap={{ scale: 0.93 }}
           >
-            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            {isPlaying ? 'توقف' : 'شروع'}
-          </Button>
+            <Button
+              variant={isPlaying ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => isPlaying ? stop() : setIsPlaying(true)}
+              disabled={isTunerActive && !isPlaying}
+              className={cn(
+                'gap-1.5 text-xs h-8',
+                isPlaying && 'bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25'
+              )}
+            >
+              {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              {isPlaying ? 'توقف' : 'شروع'}
+            </Button>
+          </motion.div>
           {isPlaying && (
             <Button variant="ghost" size="sm" onClick={stop} className="h-8 w-8 p-0">
               <RotateCcw className="h-3.5 w-3.5" />

@@ -163,6 +163,85 @@ export function playCorrectChime(): { stop: () => void } {
   };
 }
 
+// Reusable AudioContext for feedback sounds (created on first use, reused thereafter)
+let feedbackCtx: AudioContext | null = null;
+function getFeedbackContext(): AudioContext {
+  if (!feedbackCtx || feedbackCtx.state === 'closed') {
+    feedbackCtx = new AudioContext();
+  }
+  return feedbackCtx;
+}
+
+/** Play a pleasant ascending two-note chime for correct answer feedback.
+ *  Two sine oscillators (C5 523Hz then E5 659Hz) played sequentially with
+ *  ~150ms gap, each ~200ms, with ADSR envelope.
+ */
+export function playCorrectSound(): { stop: () => void } {
+  const ctx = getFeedbackContext();
+  const now = ctx.currentTime;
+  const freqs = [523.25, 659.25];
+  const noteDuration = 0.2;
+  const gap = 0.15;
+  const oscs: OscillatorNode[] = [];
+
+  freqs.forEach((freq, i) => {
+    const start = now + i * (noteDuration + gap);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, start);
+
+    // ADSR envelope
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(0.3, start + 0.03);          // attack
+    gain.gain.linearRampToValueAtTime(0.18, start + 0.08);         // decay to sustain
+    gain.gain.setValueAtTime(0.18, start + noteDuration - 0.05);   // sustain
+    gain.gain.linearRampToValueAtTime(0, start + noteDuration);     // release
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + noteDuration);
+    oscs.push(osc);
+  });
+
+  return {
+    stop: () => {
+      oscs.forEach((o) => { try { o.stop(); } catch (_e) { /* already stopped */ } });
+    },
+  };
+}
+
+/** Play a short low buzzy sound for wrong answer feedback.
+ *  Sawtooth wave at 150Hz for ~300ms with quick attack and medium release.
+ */
+export function playWrongSound(): { stop: () => void } {
+  const ctx = getFeedbackContext();
+  const now = ctx.currentTime;
+  const duration = 0.3;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, now);
+
+  // Quick attack, medium release
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.12, now + 0.02);         // quick attack
+  gain.gain.setValueAtTime(0.12, now + duration - 0.15);         // sustain
+  gain.gain.linearRampToValueAtTime(0, now + duration);          // medium release (150ms)
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+
+  return {
+    stop: () => { try { osc.stop(); } catch (_e) { /* already stopped */ } },
+  };
+}
+
 /** Play a subtle buzz for wrong answer feedback */
 export function playWrongBuzz(): { stop: () => void } {
   const ctx = new AudioContext();

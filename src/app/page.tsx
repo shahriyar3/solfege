@@ -15,6 +15,7 @@ import { IntervalTrainer } from '@/components/interval-trainer';
 import { VoiceRange } from '@/components/voice-range';
 import { PerformanceChart } from '@/components/performance-chart';
 import { Metronome } from '@/components/metronome';
+import { PianoKeyboard } from '@/components/piano-keyboard';
 import { cn } from '@/lib/utils';
 import {
   Mic,
@@ -175,6 +176,14 @@ export default function Home() {
                 {/* Waveform visualizer */}
                 <div className="my-5">
                   <WaveformVisualizer isActive={isActive} analyserNode={analyserNode} />
+                </div>
+
+                {/* Piano keyboard */}
+                <div dir="ltr" className="my-2">
+                  <PianoKeyboard
+                    currentNote={currentPitch?.note}
+                    highlightedNotes={[...new Set(noteHistory.slice(-20).map(n => n.note))]}
+                  />
                 </div>
 
                 <div className="border-t border-border/30 my-5" />
@@ -349,12 +358,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Performance chart */
         <div className="mb-4">
           <PerformanceChart />
         </div>
 
-        {/* Tips section */}
         <div className="mt-8 mb-4">
           <Card className="border border-dashed border-border/30 bg-muted/5">
             <CardContent className="p-4 sm:p-5">
@@ -367,9 +374,9 @@ export default function Home() {
                   { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با سه سطح دشواری' },
                   { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
                   { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
-                  { icon: '🎤', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
-                ].map((tip) => (
-                  <div key={tip.icon} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
+                  { icon: '🔔', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
+                ].map((tip, idx) => (
+                  <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
                     <span className="text-base shrink-0">{tip.icon}</span>
                     <p>{tip.text}</p>
                   </div>
