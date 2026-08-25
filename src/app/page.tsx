@@ -20,7 +20,10 @@ import { PianoKeyboard } from '@/components/piano-keyboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { PitchStability } from '@/components/pitch-stability';
 import { SettingsDrawer } from '@/components/settings-drawer';
-import { TunerControls, useA4Freq, useSoundEnabled } from '@/components/tuner-controls';
+import { NoteQuiz } from '@/components/note-quiz';
+import { WarmupModule } from '@/components/warmup-module';
+import { ScoreSummary } from '@/components/score-summary';
+import { TunerControls, useA4Freq, useSoundEnabled, useAccuracyThreshold } from '@/components/tuner-controls';
 import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
 import { cn } from '@/lib/utils';
@@ -45,6 +48,7 @@ function toPersianNum(n: number): string {
 export default function Home() {
   const [a4Freq] = useA4Freq();
   const [soundEnabled] = useSoundEnabled();
+  const [accuracyThreshold] = useAccuracyThreshold();
 
   const {
     isActive,
@@ -57,7 +61,7 @@ export default function Home() {
     start,
     stop,
     resetHistory,
-  } = useTuner({ a4Frequency: a4Freq });
+  } = useTuner({ a4Frequency: a4Freq, accuracyThreshold });
 
   const [showHistory, setShowHistory] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,6 +72,7 @@ export default function Home() {
   const [practiceSeconds, setPracticeSeconds] = useState(0);
   const practiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showScoreSummary, setShowScoreSummary] = useState(false);
 
   // Practice seconds tracker
   useEffect(() => {
@@ -90,13 +95,20 @@ export default function Home() {
   }, [isActive]);
 
   // Keyboard shortcuts
+  const handleStop = useCallback(() => {
+    if (noteHistory.length > 0) {
+      setShowScoreSummary(true);
+    }
+    stop();
+  }, [stop, noteHistory.length]);
+
   const handleToggleMic = useCallback(() => {
     if (isActive) {
-      stop();
+      handleStop();
     } else {
       start();
     }
-  }, [isActive, start, stop]);
+  }, [isActive, start, handleStop]);
 
   useKeyboardShortcuts({
     onToggleMic: handleToggleMic,
@@ -185,7 +197,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
+    <div className="noise-bg min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
       {/* Header */}
       <header className="sticky top-0 z-40 glass border-b border-border/30 shadow-sm shadow-black/[0.02] dark:shadow-none">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
@@ -229,6 +241,12 @@ export default function Home() {
 
       {/* Main content */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6 pb-8">
+        {/* Ambient glow */}
+        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/5 dark:bg-rose-500/[0.03] rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-violet-500/5 dark:bg-violet-500/[0.03] rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-amber-500/3 dark:bg-amber-500/[0.02] rounded-full blur-3xl" />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
           {/* Left column: Tuner */}
@@ -287,7 +305,7 @@ export default function Home() {
 
                 {/* Mic button and controls */}
                 <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
+                  <div className={cn("relative", isActive && "glow-pulse")}>
                     {isActive && (
                       <>
                         <motion.div
@@ -450,6 +468,12 @@ export default function Home() {
             {/* Metronome */}
             <Metronome isTunerActive={isActive} />
 
+            {/* Note Quiz */}
+            <NoteQuiz soundEnabled={soundEnabled} />
+
+            {/* Warmup Module */}
+            <WarmupModule soundEnabled={soundEnabled} />
+
             {/* Note history */}
             <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover overflow-hidden">
               <CardContent className="p-4 h-full flex flex-col">
@@ -492,11 +516,11 @@ export default function Home() {
                   { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
                   { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با حالت تصادفی' },
                   { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
+                  { icon: '🧠', text: 'آزمون شنوایی: نت را بشنوید و نامش را انتخاب کنید' },
+                  { icon: '🔥', text: 'گرم کردن صدا: تمرینات صعودی، نزولی، تریل و سرج' },
                   { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
-                  { icon: '🔔', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
-                  { icon: '⌨️', text: 'میانبر کیبورد: Space = میکروفون' },
-                  { icon: '🎹', text: 'نت‌های مرجع با انتخاب اکتاو و پخش صدا' },
-                  { icon: '🎛️', text: 'تنظیم فرکانس A4 (۴۲۰ تا ۴۶۰ هرتز) و خاموش/روشن صدا' },
+                  { icon: '🔔', text: 'شناسایی گستره صدا و خلاصه عملکرد جلسه' },
+                  { icon: '⌨️', text: 'میانبر: Space = میکروفون | S = شروع/توقف' },
                 ].map((tip, idx) => (
                   <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed py-1">
                     <span className="text-base shrink-0 mt-px">{tip.icon}</span>
@@ -512,17 +536,32 @@ export default function Home() {
       {/* Footer */}
       <footer className="mt-auto border-t border-border/20 glass">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground/70">
-          <span>سلفژ آنلاین — تنظیم صدا و ارزیابی دقت سلفژ</span>
+          <div className="flex items-center gap-2">
+            <Music2 className="h-3.5 w-3.5 text-rose-400/50" />
+            <span className="font-medium">سلفژ آنلاین</span>
+            <span className="text-muted-foreground/30">|</span>
+            <span>تنظیم صدا و ارزیابی دقت سلفژ</span>
+          </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline">تحلیل صدا به صورت ریل‌تایم</span>
             <span className="text-muted-foreground/30">|</span>
-            <span>نسخه ۳.۰</span>
+            <span className="font-mono text-[10px]">v3.1</span>
           </div>
         </div>
       </footer>
 
       {/* Session history modal */}
       <SessionHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
+
+      {/* Score summary modal */}
+      <ScoreSummary
+        open={showScoreSummary}
+        onClose={() => setShowScoreSummary(false)}
+        noteHistory={noteHistory}
+        bestStreak={practiceBestStreak}
+        practiceSeconds={practiceSeconds}
+        onRetry={() => { setShowScoreSummary(false); resetHistory(); setPracticeSeconds(0); }}
+      />
 
       {/* Settings drawer */}
       <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />

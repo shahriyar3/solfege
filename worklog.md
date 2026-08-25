@@ -912,3 +912,199 @@ Phase 6 focused on fixing identified risks from Phase 5, comprehensive styling p
 4. Practice scoring persistence (save to Prisma)
 5. Week/month accuracy trend chart
 6. Mobile piano keyboard scroll/swipe
+
+---
+Task ID: 7-quiz
+Agent: Note Quiz Sub-agent
+Task: Create flashcard-style note quiz component
+
+Work Log:
+- Created src/components/note-quiz.tsx with teaser and active states
+- 4-option multiple choice with Persian solfège names
+- Audio playback using playNote from audio-playback
+- Framer Motion animations, octave selector, sound toggle
+
+Stage Summary:
+- New component: src/components/note-quiz.tsx
+- Props: soundEnabled boolean
+- Features: play note, 4 choices, score/streak/accuracy tracking, octave selector
+
+---
+Task ID: 7-warmup
+Agent: Warmup Module Sub-agent
+Task: Create vocal warm-up exercise module
+
+Work Log:
+- Created src/components/warmup-module.tsx with 4 warmup exercises
+- Ascending/descending scales, trill, and sustain exercises
+- Auto-play with visual step indicators
+- Speed control (slow/medium/fast) for trill exercise
+- Ref-based recursive setTimeout to satisfy react-hooks/immutability lint rule
+- Cleanup on unmount and stop on exercise switch
+
+Stage Summary:
+- New component: src/components/warmup-module.tsx
+- 4 exercises: ascending, descending, trill, sustain
+- Auto-play with step progress, speed control, sound toggle
+
+---
+Task ID: 7-summary
+Agent: Score Summary Sub-agent
+Task: Create score summary modal component
+
+Work Log:
+- Created src/components/score-summary.tsx
+- SVG accuracy ring with amber→rose gradient stroke
+- Stats grid (2×3) with 6 metrics: total notes, accurate notes, accuracy %, best streak, practice duration, avg deviation
+- Note accuracy breakdown showing top 5 notes with color-coded bars
+- 4-level encouragement messages based on accuracy thresholds
+- Animated counter hook for smooth number counting effect
+- Retry and close footer buttons with Framer Motion entrance animations
+- Glass effect dialog styling with RTL support
+
+Stage Summary:
+- New component: src/components/score-summary.tsx
+- Props: open, onClose, noteHistory, bestStreak, practiceSeconds, onRetry
+- Features: accuracy ring, stats grid, note breakdown, encouragement levels, animated counter
+
+---
+Task ID: styling-overhaul-1
+Agent: Frontend Styling Expert
+Task: Major styling overhaul — premium CSS enhancements, noise overlay, ambient glow, new component placement
+
+## globals.css Changes
+- Body dot grid: increased opacity (0.025→0.04 light, 0.025→0.035 dark), tighter spacing (28px→24px)
+- Scrollbar thumb: upgraded to gradient (muted-foreground→border)
+- Added `.gradient-border` — animated 4-color gradient border (rose→amber→violet→cyan) with hover reveal and rotating background-position
+- Added `.animate-float` — gentle translateY float animation (3s infinite)
+- Added `.glow-pulse` — rose-colored pulsing box-shadow for active states (2s infinite)
+- Added `.noise-bg::after` — subtle SVG fractal noise texture overlay (opacity 0.015, z-index 9999)
+
+## page.tsx Changes
+- Root div: added `noise-bg` class for noise texture overlay
+- Added imports for `NoteQuiz` and `WarmupModule` components
+- Added ambient glow: 3 fixed-position blurred gradient circles (rose, violet, amber) behind main content at -z-10
+- Placed `<NoteQuiz soundEnabled={soundEnabled} />` and `<WarmupModule soundEnabled={soundEnabled} />` in right column after Metronome, before Note History
+- Mic button container: added conditional `glow-pulse` class when `isActive` (via cn())
+- Enhanced footer: added Music2 icon, restructured with flex gap, upgraded version label to monospace v3.1
+
+## tuner-gauge.tsx Changes
+- Idle indicator dot ("آماده ضبط"): added `animate-float` class for gentle floating animation
+
+## Lint
+- Pre-existing error in score-summary.tsx (setState in effect) — not introduced by this task
+- All modified files pass lint cleanly
+
+---
+Task ID: 8-phase7
+Agent: Main Agent (Phase 7 — Bug Fixes, 3 New Components, Styling Overhaul)
+Task: Fix bugs, wire accuracy threshold, add 3 new components, major styling overhaul
+
+## Current Project Status Assessment
+**Phase: Production-Ready Gamified Music Practice Platform — Phase 7 Complete**
+
+Phase 7 focused on: fixing the ChunkLoadError/cross-origin issue, wiring the accuracy threshold end-to-end, adding 3 major new components (NoteQuiz, WarmupModule, ScoreSummary), and performing a comprehensive styling overhaul with premium visual effects.
+
+## Bug Fixes
+1. **next.config.ts**: Added `allowedDevOrigins: ["127.0.0.1", "localhost", "21.0.7.107"]` to fix cross-origin warning and prevent ChunkLoadError from cross-origin `/_next/*` resource loading.
+2. **score-summary.tsx**: Fixed `react-hooks/set-state-in-effect` lint error — removed synchronous `setCount(0)` call from useEffect, replaced with early-return pattern using useRef.
+3. **OOM Kill diagnosis**: Identified root cause of server crashes as Turbopack OOM (2.4GB RSS, 31GB VM exceeding container limit). Workaround: `NODE_OPTIONS=--max-old-space-size=1536` for dev server. This is an infrastructure limitation, not a code issue.
+
+## Risk Resolution (from Phase 6)
+1. **Accuracy threshold now fully wired**: `useAccuracyThreshold()` hook in tuner-controls.tsx → consumed by page.tsx → passed as `accuracyThreshold` prop to `useTuner()` → passed to `PitchDetector` constructor → used in `frequencyToNote()` for `isAccurate` calculation. Full end-to-end chain complete.
+
+## New Features (3 components)
+
+### 1. Note Quiz (`src/components/note-quiz.tsx`) — NEW
+- Flashcard-style ear training quiz
+- Plays a random note via Web Audio, user picks from 4 Persian solfège options
+- Immediate visual feedback (green=correct, red=wrong)
+- Score, streak, accuracy tracking
+- Octave selector (3, 4, 5)
+- Sound toggle support
+- Teaser state with dashed border card
+
+### 2. Warmup Module (`src/components/warmup-module.tsx`) — NEW
+- 4 guided vocal warmup exercises:
+  - حرکت صعودی (Ascending Run): C4→C5
+  - حرکت نزولی (Descending Run): C5→C4
+  - تریل (Trill): alternating note pairs with speed control (slow/medium/fast)
+  - سرج آرام (Slow Sustain): 3-second held notes (C, E, G, C5)
+- Auto-play with visual step indicators and progress dots
+- Ref-based recursive setTimeout for animation scheduling
+- Cleanup on unmount, stop on exercise switch
+- Teaser state with orange→red gradient icon
+
+### 3. Score Summary (`src/components/score-summary.tsx`) — NEW
+- Modal dialog shown when mic stops with notes recorded
+- SVG accuracy ring with amber→rose gradient stroke + animated fill
+- 2×3 stats grid: total notes, accurate, accuracy%, best streak, practice time, avg deviation
+- Top 5 note accuracy breakdown with color-coded bars
+- 4-level encouragement messages (≥90%: عالی, ≥70%: خوب, ≥50%: قابل قبول, <50%: تمرین بیشتر)
+- Animated counter hook (useAnimatedCount) for smooth number counting
+- Retry button (resets history + timer) and Close button
+- Glass effect dialog with RTL support
+- Wired to page.tsx: shows on mic stop when noteHistory.length > 0
+
+## Styling Improvements
+
+### globals.css (6 new CSS features)
+1. **Enhanced dot grid**: opacity increased, tighter 24px spacing
+2. **Gradient scrollbar thumb**: linear-gradient from muted-foreground to border
+3. **`.gradient-border`**: Animated 4-color gradient border (rose→amber→violet→cyan) with hover reveal, rotating background-position, mask-composite technique
+4. **`.animate-float`**: Gentle 6px vertical float (3s ease-in-out infinite)
+5. **`.glow-pulse`**: Rose-colored pulsing box-shadow (2s ease-in-out infinite)
+6. **`.noise-bg::after`**: Subtle SVG fractal noise texture overlay at 1.5% opacity
+
+### page.tsx Visual Enhancements
+1. **Noise texture overlay**: Added `noise-bg` class to root div
+2. **Ambient glow**: 3 fixed-position blurred gradient circles (rose, violet, amber) behind content at -z-10
+3. **Mic button glow**: Conditional `glow-pulse` class on mic button container when active
+4. **Enhanced footer**: Music2 icon, structured flex layout, monospace v3.1 badge
+5. **Updated tips section**: 8 tips now including new NoteQuiz and WarmupModule features
+
+### tuner-gauge.tsx
+- Idle indicator dot: added `animate-float` for gentle floating animation
+
+## File Manifest (Phase 7)
+- `next.config.ts` — MODIFIED — added allowedDevOrigins
+- `src/hooks/useTuner.ts` — MODIFIED — added accuracyThreshold option, passed to PitchDetector
+- `src/components/tuner-controls.tsx` — MODIFIED — added useAccuracyThreshold hook
+- `src/app/page.tsx` — MODIFIED — imports NoteQuiz/WarmupModule/ScoreSummary, ScoreSummary wiring, handleStop for summary trigger, ambient glow, noise-bg, glow-pulse, footer redesign, tips update
+- `src/app/globals.css` — MODIFIED — gradient-border, animate-float, glow-pulse, noise-bg, enhanced dot grid, gradient scrollbar
+- `src/components/tuner-gauge.tsx` — MODIFIED — animate-float on idle indicator
+- `src/components/note-quiz.tsx` — NEW — Flashcard ear training quiz
+- `src/components/warmup-module.tsx` — NEW — 4 vocal warmup exercises
+- `src/components/score-summary.tsx` — NEW — Post-session score summary modal
+
+## Complete Feature List — 41 features total
+1-36: (same as Phase 6)
+37. Note Quiz (flashcard ear training with scoring)
+38. Vocal Warmup Module (4 exercises: ascending, descending, trill, sustain)
+39. Score Summary Modal (post-session review with accuracy ring)
+40. Accuracy threshold wired end-to-end (settings → pitch detection)
+41. Premium CSS: noise texture, ambient glow, gradient borders, glow pulse, float animation
+
+## Verification Results
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ HTTP 200 (99KB page content)
+- ✅ All Persian text elements present in HTML output
+- ✅ All new component names found in rendered page
+- ⚠️ OOM kill: Turbopack compilation uses ~2.4GB RSS, exceeding container limit. Workaround: `NODE_OPTIONS=--max-old-space-size=1536`. This is an infrastructure limitation, not a code bug.
+- ⚠️ agent-browser QA not possible: browser + Next.js combined memory exceeds container limit, causing OOM kill of the Next.js server
+
+## Risks
+1. **OOM Kill (INFRASTRUCTURE)**: Turbopack compiler uses ~2.4GB RSS memory. The sandbox container has a memory limit that causes OOM kills. Not a code issue — the app compiles and serves correctly when enough memory is available. Workaround: set NODE_OPTIONS=--max-old-space-size=1536.
+2. **agent-browser QA limitation**: Cannot run browser QA because Chrome + Next.js combined memory exceeds container limit.
+3. **No PWA support yet**
+4. **Metronome + Tuner audio coexistence** still not implemented
+
+## Next Phase Priorities
+1. PWA support (manifest.json, service worker, offline capability)
+2. Metronome + Tuner audio coexistence (separate AudioContext)
+3. Practice scoring persistence (save scores to Prisma)
+4. Week/month accuracy trend chart (line chart in performance-chart)
+5. Mobile piano keyboard scroll/swipe
+6. Keyboard shortcuts expansion (arrow keys for practice navigation)
+7. Export session as PDF (formatted practice report)
+8. Customizable gauge colors/theme (user preferences)

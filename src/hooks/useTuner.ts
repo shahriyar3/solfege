@@ -22,6 +22,7 @@ interface TunerState {
 
 interface UseTunerOptions {
   a4Frequency?: number;
+  accuracyThreshold?: number;
 }
 
 export function useTuner(options?: UseTunerOptions) {
@@ -80,6 +81,7 @@ export function useTuner(options?: UseTunerOptions) {
   }, []);
 
   const a4Freq = options?.a4Frequency ?? 440;
+  const accuracyThreshold = options?.accuracyThreshold ?? 10;
 
   const start = useCallback(async () => {
     try {
@@ -88,7 +90,7 @@ export function useTuner(options?: UseTunerOptions) {
         fftSize: 4096,
         minFrequency: 60,
         maxFrequency: 1500,
-        accuracyThreshold: 10,
+        accuracyThreshold,
         a4Frequency: a4Freq,
       });
 
@@ -107,7 +109,7 @@ export function useTuner(options?: UseTunerOptions) {
         analyserNode: null,
       }));
     }
-  }, [handlePitch, handleVolume, a4Freq]);
+  }, [handlePitch, handleVolume, a4Freq, accuracyThreshold]);
 
   const stop = useCallback(() => {
     if (detectorRef.current) {

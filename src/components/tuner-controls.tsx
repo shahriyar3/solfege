@@ -24,6 +24,10 @@ export function useSoundEnabled(): [boolean, (v: boolean | ((prev: boolean) => b
   return usePersistedState<boolean>('solfeggio-sound-on', true);
 }
 
+export function useAccuracyThreshold(): [number, (v: number | ((prev: number) => number)) => void] {
+  return usePersistedState<number>('solfeggio-accuracy-threshold', 10);
+}
+
 // ─── Sparkline internals ─────────────────────────────────────────────
 
 const SPARK_W = 80;

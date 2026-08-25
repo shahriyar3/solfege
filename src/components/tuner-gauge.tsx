@@ -343,7 +343,7 @@ export function TunerGauge({
           </>
         ) : (
           <div className="text-muted-foreground/40 text-sm mt-4 flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 animate-float" />
             آماده ضبط
           </div>
         )}
