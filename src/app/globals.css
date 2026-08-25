@@ -186,6 +186,7 @@ body {
 
 /* Card hover elevation utility — refined spring-like feel */
 .card-hover {
+  position: relative;
   transition: transform 220ms cubic-bezier(0.2, 0, 0, 1),
               box-shadow 220ms cubic-bezier(0.2, 0, 0, 1),
               border-color 220ms ease;
@@ -377,4 +378,64 @@ body {
   z-index: 9999;
   opacity: 0.015;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ── Dark mode neon accents for interactive elements ── */
+.dark .card-hover:hover {
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(244, 63, 94, 0.08),
+    0 0 40px -10px rgba(139, 92, 246, 0.08);
+}
+
+/* ── Shimmer button effect ── */
+@keyframes btn-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.btn-shimmer {
+  background-size: 200% auto;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: btn-shimmer 3s ease-in-out infinite;
+}
+.dark .btn-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+}
+
+/* ── Card inner glow on hover (dark mode) ── */
+.dark .card-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, rgba(244, 63, 94, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.dark .card-hover:hover::after {
+  opacity: 1;
+}
+
+/* ── Improved glass for dark mode ── */
+.dark .glass {
+  background: rgba(10, 10, 16, 0.65);
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Active tuner card enhanced glow ── */
+.dark .tuner-card-glow.is-active {
+  box-shadow:
+    0 0 60px -20px rgba(244, 63, 94, 0.15),
+    0 25px 50px -12px rgba(0, 0, 0, 0.4);
 }

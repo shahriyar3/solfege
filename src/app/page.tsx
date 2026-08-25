@@ -23,6 +23,8 @@ import { SettingsDrawer } from '@/components/settings-drawer';
 import { NoteQuiz } from '@/components/note-quiz';
 import { WarmupModule } from '@/components/warmup-module';
 import { ScoreSummary } from '@/components/score-summary';
+import { ScalePatterns } from '@/components/scale-patterns';
+import { BreathingExercise } from '@/components/breathing-exercise';
 import { TunerControls, useA4Freq, useSoundEnabled, useAccuracyThreshold } from '@/components/tuner-controls';
 import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
@@ -203,14 +205,14 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
-              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25 ring-1 ring-white/20 dark:ring-white/10"
+              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25 ring-1 ring-white/20 dark:ring-white/10 btn-shimmer"
               whileHover={{ scale: 1.05, rotate: -3 }}
               whileTap={{ scale: 0.95 }}
             >
               <Music2 className="h-5 w-5 text-white" />
             </motion.div>
             <div>
-              <h1 className="text-lg font-extrabold leading-tight tracking-tight">سلفژ آنلاین</h1>
+              <h1 className="text-lg font-extrabold leading-tight tracking-tight gradient-text">سلفژ آنلاین</h1>
               <p className="text-[11px] text-muted-foreground leading-tight">تنظیم صدا و تمرین سلفژ</p>
             </div>
           </div>
@@ -255,7 +257,7 @@ export default function Home() {
             <Card className={cn(
               'overflow-hidden border bg-card/95 backdrop-blur-sm card-hover transition-all duration-500 tuner-card-glow',
               isActive
-                ? 'border-rose-500/30 shadow-2xl shadow-rose-500/[0.07] is-active'
+                ? 'border-rose-500/30 shadow-2xl shadow-rose-500/[0.07] is-active gradient-border'
                 : 'border-border/40 shadow-xl shadow-black/[0.03]'
             )}>
               <CardContent className="p-5 sm:p-7 lg:p-8">
@@ -326,7 +328,7 @@ export default function Home() {
                         'relative h-[72px] w-[72px] rounded-full text-2xl shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95',
                         isActive
                           ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
-                          : 'bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 hover:from-rose-600 hover:via-pink-600 hover:to-amber-600 shadow-rose-500/30'
+                          : 'bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 hover:from-rose-600 hover:via-pink-600 hover:to-amber-600 shadow-rose-500/30 btn-shimmer'
                       )}
                       onClick={isActive ? stop : handleStart}
                     >
@@ -397,7 +399,8 @@ export default function Home() {
           {/* Right column: Stats, Timer, Achievements, Metronome, History */}
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 animate-fade-up animation-delay-200">
             {/* Stats card */}
-            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover">
+            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover overflow-hidden">
+              <div className="h-0.5 w-full bg-gradient-to-l from-violet-500 via-fuchsia-500 to-rose-500" />
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm shadow-violet-500/25">
@@ -471,8 +474,14 @@ export default function Home() {
             {/* Note Quiz */}
             <NoteQuiz soundEnabled={soundEnabled} />
 
+            {/* Scale Patterns */}
+            <ScalePatterns soundEnabled={soundEnabled} />
+
             {/* Warmup Module */}
             <WarmupModule soundEnabled={soundEnabled} />
+
+            {/* Breathing Exercise */}
+            <BreathingExercise soundEnabled={soundEnabled} />
 
             {/* Note history */}
             <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover overflow-hidden">
@@ -520,7 +529,9 @@ export default function Home() {
                   { icon: '🔥', text: 'گرم کردن صدا: تمرینات صعودی، نزولی، تریل و سرج' },
                   { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
                   { icon: '🔔', text: 'شناسایی گستره صدا و خلاصه عملکرد جلسه' },
-                  { icon: '⌨️', text: 'میانبر: Space = میکروفون | S = شروع/توقف' },
+                  { icon: '⌨️', text: 'میانبر: Space = میکروفون' },
+                  { icon: '🎼', text: 'آزمون گام‌ها: ماژور، مینور، پنتاتونیک و...' },
+                  { icon: '🌬️', text: 'تمرین تنفس: سه الگوی تنفسی برای خوانندگی' },
                 ].map((tip, idx) => (
                   <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed py-1">
                     <span className="text-base shrink-0 mt-px">{tip.icon}</span>
