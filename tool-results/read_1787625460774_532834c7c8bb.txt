@@ -1,0 +1,581 @@
+     1→'use client';
+     2→
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+     4→import { Button } from '@/components/ui/button';
+     5→import { Card, CardContent } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { useTuner } from '@/hooks/useTuner';
+     8→import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+     9→import { TunerGauge } from '@/components/tuner-gauge';
+    10→import { NoteHistory } from '@/components/note-history';
+    11→import { SessionHistory } from '@/components/session-history';
+    12→import { ReferenceNotes } from '@/components/reference-notes';
+    13→import { WaveformVisualizer } from '@/components/waveform-visualizer';
+    14→import { PracticeMode } from '@/components/practice-mode';
+    15→import { IntervalTrainer } from '@/components/interval-trainer';
+    16→import { VoiceRange } from '@/components/voice-range';
+    17→import { PerformanceChart } from '@/components/performance-chart';
+    18→import { Metronome } from '@/components/metronome';
+    19→import { PianoKeyboard } from '@/components/piano-keyboard';
+    20→import { ThemeToggle } from '@/components/theme-toggle';
+    21→import { PitchStability } from '@/components/pitch-stability';
+    22→import { SettingsDrawer } from '@/components/settings-drawer';
+    23→import { NoteQuiz } from '@/components/note-quiz';
+    24→import { WarmupModule } from '@/components/warmup-module';
+    25→import { ScoreSummary } from '@/components/score-summary';
+    26→import { ScalePatterns } from '@/components/scale-patterns';
+    27→import { BreathingExercise } from '@/components/breathing-exercise';
+    28→import { TunerControls, useA4Freq, useSoundEnabled, useAccuracyThreshold } from '@/components/tuner-controls';
+    29→import { SessionTimer } from '@/components/session-timer';
+    30→import { Achievements } from '@/components/achievements';
+    31→import { cn } from '@/lib/utils';
+    32→import {
+    33→  Mic,
+    34→  MicOff,
+    35→  Save,
+    36→  History,
+    37→  RotateCcw,
+    38→  Music2,
+    39→  TrendingUp,
+    40→  Keyboard,
+    41→  Settings2,
+    42→} from 'lucide-react';
+    43→import { motion, AnimatePresence } from 'framer-motion';
+    44→
+    45→function toPersianNum(n: number): string {
+    46→  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    47→  return String(n).replace(/\d/g, (d) => persianDigits[parseInt(d)]);
+    48→}
+    49→
+    50→export default function Home() {
+    51→  const [a4Freq] = useA4Freq();
+    52→  const [soundEnabled] = useSoundEnabled();
+    53→  const [accuracyThreshold] = useAccuracyThreshold();
+    54→
+    55→  const {
+    56→    isActive,
+    57→    currentPitch,
+    58→    volume,
+    59→    error,
+    60→    noteHistory,
+    61→    stats,
+    62→    analyserNode,
+    63→    start,
+    64→    stop,
+    65→    resetHistory,
+    66→  } = useTuner({ a4Frequency: a4Freq, accuracyThreshold });
+    67→
+    68→  const [showHistory, setShowHistory] = useState(false);
+    69→  const [saving, setSaving] = useState(false);
+    70→  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+    71→  const sessionIdRef = useRef<string | null>(null);
+    72→  const [practiceTarget, setPracticeTarget] = useState<string | null>(null);
+    73→  const [practiceBestStreak, setPracticeBestStreak] = useState(0);
+    74→  const [practiceSeconds, setPracticeSeconds] = useState(0);
+    75→  const practiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    76→  const [settingsOpen, setSettingsOpen] = useState(false);
+    77→  const [showScoreSummary, setShowScoreSummary] = useState(false);
+    78→
+    79→  // Practice seconds tracker
+    80→  useEffect(() => {
+    81→    if (!isActive) {
+    82→      if (practiceTimerRef.current) {
+    83→        clearInterval(practiceTimerRef.current);
+    84→        practiceTimerRef.current = null;
+    85→      }
+    86→      return;
+    87→    }
+    88→    practiceTimerRef.current = setInterval(() => {
+    89→      setPracticeSeconds((s) => s + 1);
+    90→    }, 1000);
+    91→    return () => {
+    92→      if (practiceTimerRef.current) {
+    93→        clearInterval(practiceTimerRef.current);
+    94→        practiceTimerRef.current = null;
+    95→      }
+    96→    };
+    97→  }, [isActive]);
+    98→
+    99→  // Keyboard shortcuts
+   100→  const handleStop = useCallback(() => {
+   101→    if (noteHistory.length > 0) {
+   102→      setShowScoreSummary(true);
+   103→    }
+   104→    stop();
+   105→  }, [stop, noteHistory.length]);
+   106→
+   107→  const handleToggleMic = useCallback(() => {
+   108→    if (isActive) {
+   109→      handleStop();
+   110→    } else {
+   111→      start();
+   112→    }
+   113→  }, [isActive, start, handleStop]);
+   114→
+   115→  useKeyboardShortcuts({
+   116→    onToggleMic: handleToggleMic,
+   117→  });
+   118→
+   119→  // Unique highlighted notes for piano
+   120→  const highlightedNotes = useMemo(
+   121→    () => [...new Set(noteHistory.slice(-20).map((n) => n.note))],
+   122→    [noteHistory],
+   123→  );
+   124→
+   125→  const handleStart = useCallback(async () => {
+   126→    try {
+   127→      const res = await fetch('/api/solfeggio/sessions', {
+   128→        method: 'POST',
+   129→        headers: { 'Content-Type': 'application/json' },
+   130→        body: JSON.stringify({ name: `جلسه ${new Date().toLocaleDateString('fa-IR')}` }),
+   131→      });
+   132→      if (res.ok) {
+   133→        const session = await res.json();
+   134→        sessionIdRef.current = session.id;
+   135→      }
+   136→    } catch (err) {
+   137→      console.error('Error creating session:', err);
+   138→    }
+   139→    start();
+   140→  }, [start]);
+   141→
+   142→  const handleSave = useCallback(async () => {
+   143→    if (!sessionIdRef.current || noteHistory.length === 0) return;
+   144→    setSaving(true);
+   145→    try {
+   146→      for (const note of noteHistory) {
+   147→        await fetch('/api/solfeggio/notes', {
+   148→          method: 'POST',
+   149→          headers: { 'Content-Type': 'application/json' },
+   150→          body: JSON.stringify({
+   151→            sessionId: sessionIdRef.current,
+   152→            noteName: note.note,
+   153→            solfege: note.solfege,
+   154→            octave: note.octave,
+   155→            frequency: note.frequency,
+   156→            cents: note.cents,
+   157→            isAccurate: note.isAccurate,
+   158→          }),
+   159→        });
+   160→      }
+   161→      setSavedMessage('ذخیره شد');
+   162→      setTimeout(() => setSavedMessage(null), 3000);
+   163→    } catch (err) {
+   164→      console.error('Error saving notes:', err);
+   165→    } finally {
+   166→      setSaving(false);
+   167→    }
+   168→  }, [noteHistory]);
+   169→
+   170→  useEffect(() => {
+   171→    if (!isActive || !sessionIdRef.current) return;
+   172→    const interval = setInterval(() => {
+   173→      if (noteHistory.length > 0) {
+   174→        const lastNote = noteHistory[noteHistory.length - 1];
+   175→        fetch('/api/solfeggio/notes', {
+   176→          method: 'POST',
+   177→          headers: { 'Content-Type': 'application/json' },
+   178→          body: JSON.stringify({
+   179→            sessionId: sessionIdRef.current,
+   180→            noteName: lastNote.note,
+   181→            solfege: lastNote.solfege,
+   182→            octave: lastNote.octave,
+   183→            frequency: lastNote.frequency,
+   184→            cents: lastNote.cents,
+   185→            isAccurate: lastNote.isAccurate,
+   186→          }),
+   187→        });
+   188→      }
+   189→    }, 5000);
+   190→    return () => clearInterval(interval);
+   191→  }, [isActive, noteHistory]);
+   192→
+   193→  const handleTargetChange = useCallback((note: string | null) => {
+   194→    setPracticeTarget(note);
+   195→  }, []);
+   196→
+   197→  const handleStreakChange = useCallback((best: number) => {
+   198→    setPracticeBestStreak(best);
+   199→  }, []);
+   200→
+   201→  return (
+   202→    <div className="noise-bg min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
+   203→      {/* Header */}
+   204→      <header className="sticky top-0 z-40 glass border-b border-border/30 shadow-sm shadow-black/[0.02] dark:shadow-none">
+   205→        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+   206→          <div className="flex items-center gap-3">
+   207→            <motion.div
+   208→              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25 ring-1 ring-white/20 dark:ring-white/10 btn-shimmer"
+   209→              whileHover={{ scale: 1.05, rotate: -3 }}
+   210→              whileTap={{ scale: 0.95 }}
+   211→            >
+   212→              <Music2 className="h-5 w-5 text-white" />
+   213→            </motion.div>
+   214→            <div>
+   215→              <h1 className="text-lg font-extrabold leading-tight tracking-tight gradient-text">سلفژ آنلاین</h1>
+   216→              <p className="text-[11px] text-muted-foreground leading-tight">تنظیم صدا و تمرین سلفژ</p>
+   217→            </div>
+   218→          </div>
+   219→          <div className="flex items-center gap-1.5">
+   220→            <Button
+   221→              variant="ghost"
+   222→              size="sm"
+   223→              className="h-8 w-8 p-0"
+   224→              onClick={() => setSettingsOpen(true)}
+   225→              aria-label="تنظیمات"
+   226→            >
+   227→              <Settings2 className="h-4 w-4" />
+   228→            </Button>
+   229→            <ThemeToggle />
+   230→            {isActive && noteHistory.length > 0 && (
+   231→              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-8 border-border/50">
+   232→                <Save className="h-3.5 w-3.5" />
+   233→                {saving ? 'در حال ذخیره...' : 'ذخیره'}
+   234→              </Button>
+   235→            )}
+   236→            <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1.5 text-xs h-8 border-border/50">
+   237→              <History className="h-3.5 w-3.5" />
+   238→              <span className="hidden sm:inline">تاریخچه</span>
+   239→            </Button>
+   240→          </div>
+   241→        </div>
+   242→      </header>
+   243→
+   244→      {/* Main content */}
+   245→      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6 pb-8">
+   246→        {/* Ambient glow */}
+   247→        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+   248→          <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/5 dark:bg-rose-500/[0.03] rounded-full blur-3xl" />
+   249→          <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-violet-500/5 dark:bg-violet-500/[0.03] rounded-full blur-3xl" />
+   250→          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-amber-500/3 dark:bg-amber-500/[0.02] rounded-full blur-3xl" />
+   251→        </div>
+   252→        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+   253→
+   254→          {/* Left column: Tuner */}
+   255→          <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5 animate-fade-up">
+   256→            {/* Main tuner card */}
+   257→            <Card className={cn(
+   258→              'overflow-hidden border bg-card/95 backdrop-blur-sm card-hover transition-all duration-500 tuner-card-glow',
+   259→              isActive
+   260→                ? 'border-rose-500/30 shadow-2xl shadow-rose-500/[0.07] is-active gradient-border'
+   261→                : 'border-border/40 shadow-xl shadow-black/[0.03]'
+   262→            )}>
+   263→              <CardContent className="p-5 sm:p-7 lg:p-8">
+   264→                {/* Top controls row: timer + tuner controls + keyboard hint */}
+   265→                <div className="flex items-center justify-between mb-4">
+   266→                  <SessionTimer isActive={isActive} />
+   267→                  <div className="hidden sm:block">
+   268→                    <TunerControls centsHistory={noteHistory.map(n => n.cents)} />
+   269→                  </div>
+   270→                  <div className="hidden lg:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+   271→                    <Keyboard className="h-3 w-3" />
+   272→                    <span>Space = میکروفون</span>
+   273→                  </div>
+   274→                </div>
+   275→
+   276→                <TunerGauge
+   277→                  cents={currentPitch?.cents ?? 0}
+   278→                  noteName={currentPitch?.note ?? '—'}
+   279→                  solfege={currentPitch?.solfege ?? '—'}
+   280→                  octave={currentPitch?.octave ?? 4}
+   281→                  frequency={currentPitch?.frequency ?? 0}
+   282→                  isAccurate={currentPitch?.isAccurate ?? false}
+   283→                  isActive={isActive}
+   284→                  volume={volume}
+   285→                />
+   286→
+   287→                {/* Pitch stability meter */}
+   288→                <div className="my-3">
+   289→                  <PitchStability isActive={isActive} noteHistory={noteHistory} />
+   290→                </div>
+   291→
+   292→                {/* Waveform visualizer */}
+   293→                <div className="my-5">
+   294→                  <WaveformVisualizer isActive={isActive} analyserNode={analyserNode} />
+   295→                </div>
+   296→
+   297→                {/* Piano keyboard */}
+   298→                <div dir="ltr" className="my-2">
+   299→                  <PianoKeyboard
+   300→                    currentNote={currentPitch?.note}
+   301→                    targetNote={practiceTarget ?? undefined}
+   302→                    highlightedNotes={highlightedNotes}
+   303→                  />
+   304→                </div>
+   305→
+   306→                <div className="border-t border-border/20 my-5" />
+   307→
+   308→                {/* Mic button and controls */}
+   309→                <div className="flex flex-col items-center gap-4">
+   310→                  <div className={cn("relative", isActive && "glow-pulse")}>
+   311→                    {isActive && (
+   312→                      <>
+   313→                        <motion.div
+   314→                          className="absolute inset-0 rounded-full bg-red-500/20"
+   315→                          animate={{ scale: [1, 1.6], opacity: [0.5, 0] }}
+   316→                          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+   317→                        />
+   318→                        <motion.div
+   319→                          className="absolute inset-0 rounded-full bg-red-500/12"
+   320→                          animate={{ scale: [1, 1.35], opacity: [0.35, 0] }}
+   321→                          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
+   322→                        />
+   323→                      </>
+   324→                    )}
+   325→                    <Button
+   326→                      size="lg"
+   327→                      className={cn(
+   328→                        'relative h-[72px] w-[72px] rounded-full text-2xl shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95',
+   329→                        isActive
+   330→                          ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
+   331→                          : 'bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 hover:from-rose-600 hover:via-pink-600 hover:to-amber-600 shadow-rose-500/30 btn-shimmer'
+   332→                      )}
+   333→                      onClick={isActive ? stop : handleStart}
+   334→                    >
+   335→                      <AnimatePresence mode="wait">
+   336→                        <motion.div
+   337→                          key={isActive ? 'off' : 'on'}
+   338→                          initial={{ scale: 0, rotate: -90 }}
+   339→                          animate={{ scale: 1, rotate: 0 }}
+   340→                          exit={{ scale: 0, rotate: 90 }}
+   341→                          transition={{ duration: 0.2 }}
+   342→                        >
+   343→                          {isActive ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
+   344→                        </motion.div>
+   345→                      </AnimatePresence>
+   346→                    </Button>
+   347→                  </div>
+   348→
+   349→                  <div className="flex flex-col items-center gap-1.5">
+   350→                    <span className="text-sm font-medium text-foreground/80">
+   351→                      {isActive ? 'در حال ضبط... برای توقف بزنید' : 'برای شروع سلفژ بزنید'}
+   352→                    </span>
+   353→                    {error && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-1 rounded-full">{error}</p>}
+   354→                    <AnimatePresence>
+   355→                      {savedMessage && (
+   356→                        <motion.p
+   357→                          initial={{ opacity: 0, y: 5 }}
+   358→                          animate={{ opacity: 1, y: 0 }}
+   359→                          exit={{ opacity: 0 }}
+   360→                          className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-full"
+   361→                        >
+   362→                          {savedMessage}
+   363→                        </motion.p>
+   364→                      )}
+   365→                    </AnimatePresence>
+   366→                  </div>
+   367→
+   368→                  {noteHistory.length > 0 && (
+   369→                    <div className="flex items-center gap-3 mt-1">
+   370→                      <Button variant="ghost" size="sm" onClick={resetHistory} className="gap-1.5 text-xs text-muted-foreground h-7">
+   371→                        <RotateCcw className="h-3 w-3" />
+   372→                        پاک کردن
+   373→                      </Button>
+   374→                      <div className="text-xs text-muted-foreground">
+   375→                        {toPersianNum(noteHistory.length)} نت شناسایی شده
+   376→                      </div>
+   377→                    </div>
+   378→                  )}
+   379→                </div>
+   380→              </CardContent>
+   381→            </Card>
+   382→
+   383→            {/* Practice mode */}
+   384→            <PracticeMode
+   385→              currentPitch={currentPitch}
+   386→              isActive={isActive}
+   387→              soundEnabled={soundEnabled}
+   388→              onTargetChange={handleTargetChange}
+   389→              onStreakChange={handleStreakChange}
+   390→            />
+   391→
+   392→            {/* Reference notes */}
+   393→            <ReferenceNotes currentNote={currentPitch?.note} />
+   394→
+   395→            {/* Interval trainer */}
+   396→            <IntervalTrainer currentPitch={currentPitch} isActive={isActive} soundEnabled={soundEnabled} />
+   397→          </div>
+   398→
+   399→          {/* Right column: Stats, Timer, Achievements, Metronome, History */}
+   400→          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 animate-fade-up animation-delay-200">
+   401→            {/* Stats card */}
+   402→            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover overflow-hidden">
+   403→              <div className="h-0.5 w-full bg-gradient-to-l from-violet-500 via-fuchsia-500 to-rose-500" />
+   404→              <CardContent className="p-4">
+   405→                <div className="flex items-center gap-2 mb-3">
+   406→                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm shadow-violet-500/25">
+   407→                    <TrendingUp className="h-3.5 w-3.5 text-white" />
+   408→                  </div>
+   409→                  <h3 className="text-sm font-bold">آمار جلسه</h3>
+   410→                  <div className="flex-1" />
+   411→                  {stats.totalNotes > 0 && (
+   412→                    <span className="text-[10px] text-muted-foreground/60 font-mono tabular-nums">{toPersianNum(stats.totalNotes)} نت</span>
+   413→                  )}
+   414→                </div>
+   415→                <div className="grid grid-cols-3 gap-2.5">
+   416→                  <div className="bg-gradient-to-b from-muted/40 to-muted/10 rounded-xl p-3 text-center border border-border/15 shadow-sm shadow-black/[0.01]">
+   417→                    <div className="text-2xl font-bold tabular-nums">{toPersianNum(stats.totalNotes)}</div>
+   418→                    <div className="text-[10px] text-muted-foreground mt-0.5">کل نت‌ها</div>
+   419→                  </div>
+   420→                  <div className="bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 rounded-xl p-3 text-center border border-emerald-200/20 dark:border-emerald-800/20 shadow-sm shadow-emerald-500/[0.03]">
+   421→                    <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{toPersianNum(stats.accurateNotes)}</div>
+   422→                    <div className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">نت‌های تمیز</div>
+   423→                  </div>
+   424→                  <div className={cn('rounded-xl p-3 text-center border',
+   425→                    stats.accuracy >= 80 ? 'bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 border-emerald-200/20 dark:border-emerald-800/20' :
+   426→                    stats.accuracy >= 50 ? 'bg-gradient-to-b from-yellow-50/50 to-yellow-100/10 dark:from-yellow-950/20 dark:to-yellow-950/5 border-yellow-200/20 dark:border-yellow-800/20' :
+   427→                    'bg-gradient-to-b from-muted/50 to-muted/20 border-border/20'
+   428→                  )}>
+   429→                    <div className={cn(
+   430→                      'text-2xl font-bold tabular-nums',
+   431→                      stats.accuracy >= 80 ? 'text-emerald-600 dark:text-emerald-400' : stats.accuracy >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'
+   432→                    )}>
+   433→                      {toPersianNum(stats.accuracy)}٪
+   434→                    </div>
+   435→                    <div className="text-[10px] text-muted-foreground mt-0.5">دقت</div>
+   436→                  </div>
+   437→                </div>
+   438→                {stats.totalNotes > 0 && (
+   439→                  <div className="mt-3">
+   440→                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+   441→                      <span>دقت کلی</span>
+   442→                      <span>{toPersianNum(stats.accuracy)}٪</span>
+   443→                    </div>
+   444→                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+   445→                      <motion.div
+   446→                        className={cn(
+   447→                          'h-full rounded-full',
+   448→                          stats.accuracy >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : stats.accuracy >= 50 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+   449→                        )}
+   450→                        animate={{ width: `${stats.accuracy}%` }}
+   451→                        transition={{ duration: 0.5, ease: 'easeOut' }}
+   452→                      />
+   453→                    </div>
+   454→                  </div>
+   455→                )}
+   456→              </CardContent>
+   457→            </Card>
+   458→
+   459→            {/* Achievements */}
+   460→            <Achievements
+   461→              totalNotes={stats.totalNotes}
+   462→              accurateNotes={stats.accurateNotes}
+   463→              accuracy={stats.accuracy}
+   464→              bestStreak={practiceBestStreak}
+   465→              practiceSeconds={practiceSeconds}
+   466→            />
+   467→
+   468→            {/* Voice range */}
+   469→            <VoiceRange currentPitch={currentPitch} isActive={isActive} noteHistory={noteHistory} />
+   470→
+   471→            {/* Metronome */}
+   472→            <Metronome isTunerActive={isActive} />
+   473→
+   474→            {/* Note Quiz */}
+   475→            <NoteQuiz soundEnabled={soundEnabled} />
+   476→
+   477→            {/* Scale Patterns */}
+   478→            <ScalePatterns soundEnabled={soundEnabled} />
+   479→
+   480→            {/* Warmup Module */}
+   481→            <WarmupModule soundEnabled={soundEnabled} />
+   482→
+   483→            {/* Breathing Exercise */}
+   484→            <BreathingExercise soundEnabled={soundEnabled} />
+   485→
+   486→            {/* Note history */}
+   487→            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover overflow-hidden">
+   488→              <CardContent className="p-4 h-full flex flex-col">
+   489→                <div className="flex items-center justify-between mb-3">
+   490→                  <div className="flex items-center gap-2">
+   491→                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-sm shadow-sky-500/25">
+   492→                      <Music2 className="h-3.5 w-3.5 text-white" />
+   493→                    </div>
+   494→                    <h3 className="text-sm font-bold">نت‌های شناسایی شده</h3>
+   495→                  </div>
+   496→                  {noteHistory.length > 0 && (
+   497→                    <Badge variant="outline" className="text-[10px] font-mono h-5">
+   498→                      {toPersianNum(noteHistory.length)}
+   499→                    </Badge>
+   500→                  )}
+   501→                </div>
+   502→                <div className="flex-1 min-h-0">
+   503→                  <NoteHistory notes={noteHistory} stats={stats} />
+   504→                </div>
+   505→              </CardContent>
+   506→            </Card>
+   507→          </div>
+   508→        </div>
+   509→
+   510→        <div className="mb-5">
+   511→          <PerformanceChart />
+   512→        </div>
+   513→
+   514→        <div className="mt-10 mb-2 animate-fade-up animation-delay-400">
+   515→          <Card className="border border-dashed border-border/25 bg-muted/[0.03] card-hover">
+   516→            <CardContent className="p-4 sm:p-5">
+   517→              <div className="flex items-center gap-2 mb-4">
+   518→                <div className="h-5 w-5 rounded-md bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shadow-amber-500/20">
+   519→                  <span className="text-xs">💡</span>
+   520→                </div>
+   521→                <h3 className="text-sm font-bold">راهنمای استفاده</h3>
+   522→              </div>
+   523→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+   524→                {[
+   525→                  { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
+   526→                  { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با حالت تصادفی' },
+   527→                  { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
+   528→                  { icon: '🧠', text: 'آزمون شنوایی: نت را بشنوید و نامش را انتخاب کنید' },
+   529→                  { icon: '🔥', text: 'گرم کردن صدا: تمرینات صعودی، نزولی، تریل و سرج' },
+   530→                  { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
+   531→                  { icon: '🔔', text: 'شناسایی گستره صدا و خلاصه عملکرد جلسه' },
+   532→                  { icon: '⌨️', text: 'میانبر: Space = میکروفون' },
+   533→                  { icon: '🎼', text: 'آزمون گام‌ها: ماژور، مینور، پنتاتونیک و...' },
+   534→                  { icon: '🌬️', text: 'تمرین تنفس: سه الگوی تنفسی برای خوانندگی' },
+   535→                ].map((tip, idx) => (
+   536→                  <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed py-1">
+   537→                    <span className="text-base shrink-0 mt-px">{tip.icon}</span>
+   538→                    <p>{tip.text}</p>
+   539→                  </div>
+   540→                ))}
+   541→              </div>
+   542→            </CardContent>
+   543→          </Card>
+   544→        </div>
+   545→      </main>
+   546→
+   547→      {/* Footer */}
+   548→      <footer className="mt-auto border-t border-border/20 glass">
+   549→        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground/70">
+   550→          <div className="flex items-center gap-2">
+   551→            <Music2 className="h-3.5 w-3.5 text-rose-400/50" />
+   552→            <span className="font-medium">سلفژ آنلاین</span>
+   553→            <span className="text-muted-foreground/30">|</span>
+   554→            <span>تنظیم صدا و ارزیابی دقت سلفژ</span>
+   555→          </div>
+   556→          <div className="flex items-center gap-3">
+   557→            <span className="hidden sm:inline">تحلیل صدا به صورت ریل‌تایم</span>
+   558→            <span className="text-muted-foreground/30">|</span>
+   559→            <span className="font-mono text-[10px]">v3.1</span>
+   560→          </div>
+   561→        </div>
+   562→      </footer>
+   563→
+   564→      {/* Session history modal */}
+   565→      <SessionHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
+   566→
+   567→      {/* Score summary modal */}
+   568→      <ScoreSummary
+   569→        open={showScoreSummary}
+   570→        onClose={() => setShowScoreSummary(false)}
+   571→        noteHistory={noteHistory}
+   572→        bestStreak={practiceBestStreak}
+   573→        practiceSeconds={practiceSeconds}
+   574→        onRetry={() => { setShowScoreSummary(false); resetHistory(); setPracticeSeconds(0); }}
+   575→      />
+   576→
+   577→      {/* Settings drawer */}
+   578→      <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+   579→    </div>
+   580→  );
+   581→}
