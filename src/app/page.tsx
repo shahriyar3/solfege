@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTuner } from '@/hooks/useTuner';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { TunerGauge } from '@/components/tuner-gauge';
 import { NoteHistory } from '@/components/note-history';
 import { SessionHistory } from '@/components/session-history';
@@ -16,6 +17,9 @@ import { VoiceRange } from '@/components/voice-range';
 import { PerformanceChart } from '@/components/performance-chart';
 import { Metronome } from '@/components/metronome';
 import { PianoKeyboard } from '@/components/piano-keyboard';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { SessionTimer } from '@/components/session-timer';
+import { Achievements } from '@/components/achievements';
 import { cn } from '@/lib/utils';
 import {
   Mic,
@@ -25,6 +29,7 @@ import {
   RotateCcw,
   Music2,
   TrendingUp,
+  Keyboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -51,6 +56,49 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const [practiceTarget, setPracticeTarget] = useState<string | null>(null);
+  const [practiceBestStreak, setPracticeBestStreak] = useState(0);
+  const [practiceSeconds, setPracticeSeconds] = useState(0);
+  const practiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Practice seconds tracker
+  useEffect(() => {
+    if (!isActive) {
+      if (practiceTimerRef.current) {
+        clearInterval(practiceTimerRef.current);
+        practiceTimerRef.current = null;
+      }
+      return;
+    }
+    practiceTimerRef.current = setInterval(() => {
+      setPracticeSeconds((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (practiceTimerRef.current) {
+        clearInterval(practiceTimerRef.current);
+        practiceTimerRef.current = null;
+      }
+    };
+  }, [isActive]);
+
+  // Keyboard shortcuts
+  const handleToggleMic = useCallback(() => {
+    if (isActive) {
+      stop();
+    } else {
+      start();
+    }
+  }, [isActive, start, stop]);
+
+  useKeyboardShortcuts({
+    onToggleMic: handleToggleMic,
+  });
+
+  // Unique highlighted notes for piano
+  const highlightedNotes = useMemo(
+    () => [...new Set(noteHistory.slice(-20).map((n) => n.note))],
+    [noteHistory],
+  );
 
   const handleStart = useCallback(async () => {
     try {
@@ -120,10 +168,18 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [isActive, noteHistory]);
 
+  const handleTargetChange = useCallback((note: string | null) => {
+    setPracticeTarget(note);
+  }, []);
+
+  const handleStreakChange = useCallback((best: number) => {
+    setPracticeBestStreak(best);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-2xl bg-background/60 border-b border-border/40">
+      <header className="sticky top-0 z-40 glass border-b border-border/40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
@@ -138,7 +194,8 @@ export default function Home() {
               <p className="text-[11px] text-muted-foreground leading-tight">تنظیم صدا و تمرین سلفژ</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             {isActive && noteHistory.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-8">
                 <Save className="h-3.5 w-3.5" />
@@ -160,8 +217,17 @@ export default function Home() {
           {/* Left column: Tuner */}
           <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
             {/* Main tuner card */}
-            <Card className="overflow-hidden border border-border/40 shadow-xl shadow-black/[0.04] bg-card/90 backdrop-blur-sm">
+            <Card className="overflow-hidden border border-border/40 shadow-xl shadow-black/[0.04] bg-card/90 backdrop-blur-sm card-hover">
               <CardContent className="p-5 sm:p-8">
+                {/* Session timer + keyboard hint row */}
+                <div className="flex items-center justify-between mb-4">
+                  <SessionTimer isActive={isActive} />
+                  <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                    <Keyboard className="h-3 w-3" />
+                    <span>Space = میکروفون</span>
+                  </div>
+                </div>
+
                 <TunerGauge
                   cents={currentPitch?.cents ?? 0}
                   noteName={currentPitch?.note ?? '—'}
@@ -182,7 +248,8 @@ export default function Home() {
                 <div dir="ltr" className="my-2">
                   <PianoKeyboard
                     currentNote={currentPitch?.note}
-                    highlightedNotes={[...new Set(noteHistory.slice(-20).map(n => n.note))]}
+                    targetNote={practiceTarget ?? undefined}
+                    highlightedNotes={highlightedNotes}
                   />
                 </div>
 
@@ -264,7 +331,12 @@ export default function Home() {
             </Card>
 
             {/* Practice mode */}
-            <PracticeMode currentPitch={currentPitch} isActive={isActive} />
+            <PracticeMode
+              currentPitch={currentPitch}
+              isActive={isActive}
+              onTargetChange={handleTargetChange}
+              onStreakChange={handleStreakChange}
+            />
 
             {/* Reference notes */}
             <ReferenceNotes currentNote={currentPitch?.note} />
@@ -273,10 +345,10 @@ export default function Home() {
             <IntervalTrainer currentPitch={currentPitch} isActive={isActive} />
           </div>
 
-          {/* Right column: Stats, Metronome, History */}
+          {/* Right column: Stats, Timer, Achievements, Metronome, History */}
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
             {/* Stats card */}
-            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm">
+            <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-sm shadow-violet-500/25">
@@ -328,6 +400,15 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Achievements */}
+            <Achievements
+              totalNotes={stats.totalNotes}
+              accurateNotes={stats.accurateNotes}
+              accuracy={stats.accuracy}
+              bestStreak={practiceBestStreak}
+              practiceSeconds={practiceSeconds}
+            />
+
             {/* Voice range */}
             <VoiceRange currentPitch={currentPitch} isActive={isActive} noteHistory={noteHistory} />
 
@@ -335,7 +416,7 @@ export default function Home() {
             <Metronome isTunerActive={isActive} />
 
             {/* Note history */}
-            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px]">
+            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover">
               <CardContent className="p-4 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -363,7 +444,7 @@ export default function Home() {
         </div>
 
         <div className="mt-8 mb-4">
-          <Card className="border border-dashed border-border/30 bg-muted/5">
+          <Card className="border border-dashed border-border/30 bg-muted/5 card-hover">
             <CardContent className="p-4 sm:p-5">
               <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
                 <span>💡</span> راهنمای استفاده
@@ -375,6 +456,9 @@ export default function Home() {
                   { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
                   { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
                   { icon: '🔔', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
+                  { icon: '⌨️', text: 'میانبر کیبورد: Space = میکروفون، کلیدهای جهت‌نما' },
+                  { icon: '🏆', text: 'دستاوردها: قفل‌گشایی بموقعی بر اساس پیشرفت شما' },
+                  { icon: '🌙', text: 'حالت تاریک/روشن از دکمه در هدر صفحه' },
                 ].map((tip, idx) => (
                   <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
                     <span className="text-base shrink-0">{tip.icon}</span>
@@ -388,10 +472,14 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-border/30 bg-background/60 backdrop-blur-2xl">
+      <footer className="mt-auto border-t border-border/30 glass">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>سلفژ آنلاین — تنظیم صدا و ارزیابی دقت سلفژ</span>
-          <span>تحلیل صدا به صورت ریل‌تایم</span>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline">تحلیل صدا به صورت ریل‌تایم</span>
+            <span className="text-muted-foreground/40">|</span>
+            <span>نسخه ۲.۰</span>
+          </div>
         </div>
       </footer>
 

@@ -71,11 +71,13 @@ const NOTE_COLORS: Record<string, string> = {
 interface PracticeModeProps {
   currentPitch: PitchResult | null;
   isActive: boolean;
+  onTargetChange?: (note: string | null) => void;
+  onStreakChange?: (bestStreak: number) => void;
 }
 
 type ScaleType = 'natural' | 'chromatic';
 
-export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
+export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakChange }: PracticeModeProps) {
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [scaleType, setScaleType] = useState<ScaleType>('natural');
@@ -94,6 +96,15 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
   const targetNote = scale[targetIndex];
   const config = DIFFICULTY_CONFIG[difficulty];
 
+  // Report target note to parent for piano keyboard highlighting
+  useEffect(() => {
+    if (isPracticeMode) {
+      onTargetChange?.(targetNote.note);
+    } else {
+      onTargetChange?.(null);
+    }
+  }, [isPracticeMode, targetNote.note, onTargetChange]);
+
   // Check if current pitch matches target — uses timeout to avoid synchronous setState in effect
   useEffect(() => {
     if (!isActive || !currentPitch || !isPracticeMode || detectedRef.current) return;
@@ -110,7 +121,11 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
         setAttemptCount((a) => a + 1);
         setStreak((s) => {
           const next = s + 1;
-          setBestStreak((b) => Math.max(b, next));
+          setBestStreak((b) => {
+            const newBest = Math.max(b, next);
+            onStreakChange?.(newBest);
+            return newBest;
+          });
           return next;
         });
       });
@@ -156,7 +171,8 @@ export function PracticeMode({ currentPitch, isActive }: PracticeModeProps) {
     setStreak(0);
     setBestStreak(0);
     setNoteResult(null);
-  }, []);
+    onStreakChange?.(0);
+  }, [onStreakChange]);
 
   if (!isPracticeMode) {
     return (
