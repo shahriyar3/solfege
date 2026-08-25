@@ -1,0 +1,756 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react';
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     5→import { Button } from '@/components/ui/button';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import {
+     8→  Select,
+     9→  SelectContent,
+    10→  SelectItem,
+    11→  SelectTrigger,
+    12→  SelectValue,
+    13→} from '@/components/ui/select';
+    14→import { cn } from '@/lib/utils';
+    15→import { playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+    16→import { motion, AnimatePresence } from 'framer-motion';
+    17→import {
+    18→  Mic,
+    19→  ChevronLeft,
+    20→  Square,
+    21→  Shuffle,
+    22→  RotateCcw,
+    23→  Volume2,
+    24→  CheckCircle2,
+    25→  XCircle,
+    26→  AlertTriangle,
+    27→  Zap,
+    28→  Target,
+    29→} from 'lucide-react';
+    30→
+    31→// ─── Constants ──────────────────────────────────────────────
+    32→
+    33→const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
+    34→type NoteName = (typeof NOTE_NAMES)[number];
+    35→
+    36→const PERSIAN_LABELS: Record<NoteName, string> = {
+    37→  C: 'دو',
+    38→  D: 'رِ',
+    39→  E: 'می',
+    40→  F: 'فا',
+    41→  G: 'سل',
+    42→  A: 'لا',
+    43→  B: 'سی',
+    44→};
+    45→
+    46→const NOTE_INDICES: Record<NoteName, number> = {
+    47→  C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11,
+    48→};
+    49→
+    50→const NOTE_GRADIENTS: Record<NoteName, string> = {
+    51→  C: 'from-red-400 to-rose-500',
+    52→  D: 'from-orange-400 to-amber-500',
+    53→  E: 'from-yellow-400 to-yellow-500',
+    54→  F: 'from-green-400 to-emerald-500',
+    55→  G: 'from-teal-400 to-cyan-500',
+    56→  A: 'from-sky-400 to-blue-500',
+    57→  B: 'from-violet-400 to-purple-500',
+    58→};
+    59→
+    60→const OCTAVES = [2, 3, 4, 5, 6];
+    61→
+    62→const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    63→
+    64→function toPersianNum(n: number): string {
+    65→  return String(n)
+    66→    .split('')
+    67→    .map((d) => PERSIAN_DIGITS[parseInt(d)])
+    68→    .join('');
+    69→}
+    70→
+    71→const A4_FREQ = 440.0;
+    72→const A4_MIDI = 69;
+    73→
+    74→function calcFrequency(note: NoteName, octave: number): number {
+    75→  const midi = (octave + 1) * 12 + NOTE_INDICES[note];
+    76→  return Math.round(A4_FREQ * Math.pow(2, (midi - A4_MIDI) / 12) * 10) / 10;
+    77→}
+    78→
+    79→// ─── Pitch detection (inline, simplified) ───────────────────
+    80→
+    81→const ALL_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    82→
+    83→interface DetectedNote {
+    84→  frequency: number;
+    85→  note: string;
+    86→  octave: number;
+    87→  cents: number;
+    88→}
+    89→
+    90→function autoCorrelate(
+    91→  buf: Float32Array,
+    92→  sampleRate: number,
+    93→  minFreq: number,
+    94→  maxFreq: number,
+    95→): number | null {
+    96→  const SIZE = buf.length;
+    97→  let rms = 0;
+    98→  for (let i = 0; i < SIZE; i++) {
+    99→    rms += buf[i] * buf[i];
+   100→  }
+   101→  rms = Math.sqrt(rms / SIZE);
+   102→  if (rms < 0.01) return null;
+   103→
+   104→  const minPeriod = Math.floor(sampleRate / maxFreq);
+   105→  const maxPeriod = Math.ceil(sampleRate / minFreq);
+   106→
+   107→  let bestOffset = -1;
+   108→  let bestCorrelation = 0;
+   109→  let foundGoodCorrelation = false;
+   110→  const correlations = new Float32Array(maxPeriod + 1);
+   111→
+   112→  for (let offset = minPeriod; offset <= Math.min(maxPeriod, Math.floor(SIZE / 2)); offset++) {
+   113→    let correlation = 0;
+   114→    for (let i = 0; i < SIZE - offset; i++) {
+   115→      correlation += Math.abs(buf[i] - buf[i + offset]);
+   116→    }
+   117→    correlation = 1 - correlation / (SIZE - offset);
+   118→    correlations[offset] = correlation;
+   119→
+   120→    if (correlation > 0.9 && correlation > bestCorrelation) {
+   121→      bestCorrelation = correlation;
+   122→      bestOffset = offset;
+   123→      foundGoodCorrelation = true;
+   124→    } else if (foundGoodCorrelation) {
+   125→      const shortAvg = (correlations[bestOffset - 1] + correlations[bestOffset] + correlations[bestOffset + 1]) / 3;
+   126→      if (correlation < shortAvg) break;
+   127→    }
+   128→  }
+   129→
+   130→  if (bestCorrelation > 0.01 && bestOffset > 0) {
+   131→    let shift = 0;
+   132→    if (bestOffset > 0 && bestOffset < SIZE - 1) {
+   133→      const prev = correlations[bestOffset - 1] || 0;
+   134→      const next = correlations[bestOffset + 1] || 0;
+   135→      shift = (next - prev) / (2 * (2 * bestCorrelation - prev - next));
+   136→      if (isNaN(shift)) shift = 0;
+   137→    }
+   138→    return sampleRate / (bestOffset + shift);
+   139→  }
+   140→  return null;
+   141→}
+   142→
+   143→function frequencyToNote(freq: number): DetectedNote {
+   144→  const midiNumber = Math.round(12 * Math.log2(freq / A4_FREQ) + A4_MIDI);
+   145→  const exactMidi = 12 * Math.log2(freq / A4_FREQ) + A4_MIDI;
+   146→  const cents = Math.round((exactMidi - midiNumber) * 100);
+   147→  const clampedCents = Math.max(-50, Math.min(50, cents));
+   148→  const noteIndex = ((midiNumber % 12) + 12) % 12;
+   149→  const octave = Math.floor(midiNumber / 12) - 1;
+   150→  return {
+   151→    frequency: Math.round(freq * 10) / 10,
+   152→    note: ALL_NOTE_NAMES[noteIndex],
+   153→    octave,
+   154→    cents: clampedCents,
+   155→  };
+   156→}
+   157→
+   158→// ─── Types ──────────────────────────────────────────────────
+   159→
+   160→type ResultType = 'correct' | 'wrong-octave' | 'wrong' | null;
+   161→
+   162→type Phase = 'idle' | 'ready' | 'recording' | 'result';
+   163→
+   164→// ─── Component ──────────────────────────────────────────────
+   165→
+   166→export function SingleNotePractice() {
+   167→  const [expanded, setExpanded] = useState(false);
+   168→  const [selectedNote, setSelectedNote] = useState<NoteName>('E');
+   169→  const [selectedOctave, setSelectedOctave] = useState(4);
+   170→  const [phase, setPhase] = useState<Phase>('idle');
+   171→  const [detected, setDetected] = useState<DetectedNote | null>(null);
+   172→  const [result, setResult] = useState<ResultType>(null);
+   173→  const [error, setError] = useState<string | null>(null);
+   174→  const [stats, setStats] = useState({ total: 0, correct: 0, streak: 0, bestStreak: 0 });
+   175→
+   176→  // Audio refs
+   177→  const audioCtxRef = useRef<AudioContext | null>(null);
+   178→  const analyserRef = useRef<AnalyserNode | null>(null);
+   179→  const streamRef = useRef<MediaStream | null>(null);
+   180→  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+   181→  const rafRef = useRef<number | null>(null);
+   182→  const bufferRef = useRef<Float32Array>(new Float32Array(0));
+   183→  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   184→  const detectedRef = useRef<DetectedNote | null>(null);
+   185→
+   186→  const targetFreq = calcFrequency(selectedNote, selectedOctave);
+   187→
+   188→  // Cleanup audio on unmount
+   189→  useEffect(() => {
+   190→    return () => {
+   191→      cleanupAudio();
+   192→    };
+   193→  }, []);
+   194→
+   195→  const cleanupAudio = useCallback(() => {
+   196→    if (rafRef.current !== null) {
+   197→      cancelAnimationFrame(rafRef.current);
+   198→      rafRef.current = null;
+   199→    }
+   200→    if (timeoutRef.current !== null) {
+   201→      clearTimeout(timeoutRef.current);
+   202→      timeoutRef.current = null;
+   203→    }
+   204→    if (sourceRef.current) {
+   205→      sourceRef.current.disconnect();
+   206→      sourceRef.current = null;
+   207→    }
+   208→    if (analyserRef.current) {
+   209→      analyserRef.current.disconnect();
+   210→      analyserRef.current = null;
+   211→    }
+   212→    if (audioCtxRef.current) {
+   213→      audioCtxRef.current.close();
+   214→      audioCtxRef.current = null;
+   215→    }
+   216→    if (streamRef.current) {
+   217→      streamRef.current.getTracks().forEach((t) => t.stop());
+   218→      streamRef.current = null;
+   219→    }
+   220→  }, []);
+   221→
+   222→  const startRecording = useCallback(async () => {
+   223→    try {
+   224→      setError(null);
+   225→      setDetected(null);
+   226→      setResult(null);
+   227→      detectedRef.current = null;
+   228→
+   229→      const stream = await navigator.mediaDevices.getUserMedia({
+   230→        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, latencyHint: 'interactive' as MediaTrackConstraints },
+   231→      });
+   232→      streamRef.current = stream;
+   233→
+   234→      const ctx = new AudioContext();
+   235→      audioCtxRef.current = ctx;
+   236→
+   237→      const analyser = ctx.createAnalyser();
+   238→      analyser.fftSize = 4096;
+   239→      analyser.smoothingTimeConstant = 0;
+   240→      analyserRef.current = analyser;
+   241→
+   242→      const source = ctx.createMediaStreamSource(stream);
+   243→      source.connect(analyser);
+   244→      sourceRef.current = source;
+   245→
+   246→      bufferRef.current = new Float32Array(analyser.fftSize);
+   247→      setPhase('recording');
+   248→
+   249→      // 8-second timeout
+   250→      timeoutRef.current = setTimeout(() => {
+   251→        stopRecordingAndEvaluate();
+   252→      }, 8000);
+   253→
+   254→      // Analysis loop
+   255→      const analyze = () => {
+   256→        if (!analyserRef.current || !audioCtxRef.current) return;
+   257→        analyserRef.current.getFloatTimeDomainData(bufferRef.current);
+   258→
+   259→        const freq = autoCorrelate(
+   260→          bufferRef.current,
+   261→          audioCtxRef.current.sampleRate,
+   262→          60,
+   263→          1500,
+   264→        );
+   265→
+   266→        if (freq !== null) {
+   267→          const noteResult = frequencyToNote(freq);
+   268→          detectedRef.current = noteResult;
+   269→          setDetected(noteResult);
+   270→        } else {
+   271→          setDetected(null);
+   272→        }
+   273→
+   274→        rafRef.current = requestAnimationFrame(analyze);
+   275→      };
+   276→      analyze();
+   277→    } catch (_err) {
+   278→      setError('دسترسی به میکروفون رد شد. لطفاً اجازه دسترسی بدهید.');
+   279→      setPhase('ready');
+   280→    }
+   281→  }, []);
+   282→
+   283→  const stopRecordingAndEvaluate = useCallback(() => {
+   284→    if (timeoutRef.current) {
+   285→      clearTimeout(timeoutRef.current);
+   286→      timeoutRef.current = null;
+   287→    }
+   288→    if (rafRef.current) {
+   289→      cancelAnimationFrame(rafRef.current);
+   290→      rafRef.current = null;
+   291→    }
+   292→
+   293→    const d = detectedRef.current;
+   294→    cleanupAudio();
+   295→
+   296→    if (!d) {
+   297→      setResult('wrong');
+   298→      setPhase('result');
+   299→      setStats((prev) => ({
+   300→        total: prev.total + 1,
+   301→        correct: prev.correct,
+   302→        streak: 0,
+   303→        bestStreak: prev.bestStreak,
+   304→      }));
+   305→      playWrongSound();
+   306→      return;
+   307→    }
+   308→
+   309→    const noteMatch = d.note === selectedNote;
+   310→    const octaveMatch = d.octave === selectedOctave;
+   311→    const centsMatch = Math.abs(d.cents) <= 5;
+   312→
+   313→    let r: ResultType;
+   314→    if (noteMatch && octaveMatch && centsMatch) {
+   315→      r = 'correct';
+   316→      playCorrectSound();
+   317→    } else if (noteMatch && !octaveMatch) {
+   318→      r = 'wrong-octave';
+   319→      playWrongSound();
+   320→    } else {
+   321→      r = 'wrong';
+   322→      playWrongSound();
+   323→    }
+   324→
+   325→    setResult(r);
+   326→    setPhase('result');
+   327→
+   328→    setStats((prev) => {
+   329→      const newCorrect = r === 'correct' ? prev.correct + 1 : prev.correct;
+   330→      const newStreak = r === 'correct' ? prev.streak + 1 : 0;
+   331→      return {
+   332→        total: prev.total + 1,
+   333→        correct: newCorrect,
+   334→        streak: newStreak,
+   335→        bestStreak: Math.max(prev.bestStreak, newStreak),
+   336→      };
+   337→    });
+   338→  }, [selectedNote, selectedOctave, cleanupAudio]);
+   339→
+   340→  const handleStartStop = useCallback(() => {
+   341→    if (phase === 'recording') {
+   342→      stopRecordingAndEvaluate();
+   343→    } else {
+   344→      startRecording();
+   345→    }
+   346→  }, [phase, startRecording, stopRecordingAndEvaluate]);
+   347→
+   348→  const handleNextNote = useCallback(() => {
+   349→    const randomNote = NOTE_NAMES[Math.floor(Math.random() * NOTE_NAMES.length)];
+   350→    const randomOctave = OCTAVES[Math.floor(Math.random() * OCTAVES.length)];
+   351→    setSelectedNote(randomNote);
+   352→    setSelectedOctave(randomOctave);
+   353→    setPhase('ready');
+   354→    setDetected(null);
+   355→    setResult(null);
+   356→    setError(null);
+   357→  }, []);
+   358→
+   359→  const handleResetStats = useCallback(() => {
+   360→    setStats({ total: 0, correct: 0, streak: 0, bestStreak: 0 });
+   361→  }, []);
+   362→
+   363→  const handlePlayReference = useCallback(() => {
+   364→    playNote(targetFreq, 1.5);
+   365→  }, [targetFreq]);
+   366→
+   367→  const handleNoteChange = useCallback((val: string) => {
+   368→    setSelectedNote(val as NoteName);
+   369→    if (phase === 'idle') setPhase('ready');
+   370→    setDetected(null);
+   371→    setResult(null);
+   372→  }, [phase]);
+   373→
+   374→  const handleOctaveChange = useCallback((val: string) => {
+   375→    setSelectedOctave(parseInt(val));
+   376→    if (phase === 'idle') setPhase('ready');
+   377→    setDetected(null);
+   378→    setResult(null);
+   379→  }, [phase]);
+   380→
+   381→  const handleCollapsedOpen = useCallback(() => {
+   382→    setExpanded(true);
+   383→    if (phase === 'idle') setPhase('ready');
+   384→  }, [phase]);
+   385→
+   386→  // ─── Teaser (collapsed) ──────────────────────────────────
+   387→  if (!expanded) {
+   388→    return (
+   389→      <Card
+   390→        className="border-dashed border-2 border-border/30 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-emerald-300/40 transition-all duration-300 group cursor-pointer card-hover"
+   391→        onClick={handleCollapsedOpen}
+   392→      >
+   393→        <CardContent className="p-5 flex items-center gap-4">
+   394→          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/35 transition-all duration-300 group-hover:scale-105">
+   395→            <Target className="h-6 w-6 text-white" />
+   396→          </div>
+   397→          <div className="flex-1">
+   398→            <h3 className="text-sm font-bold">تمرین نت تکی</h3>
+   399→            <p className="text-xs text-muted-foreground mt-0.5">
+   400→              یک نت خاص را انتخاب کنید و بخوانید
+   401→            </p>
+   402→            <div className="flex gap-1.5 mt-1.5">
+   403→              <Badge variant="outline" className="text-[9px] h-4">
+   404→                ۷ نت
+   405→              </Badge>
+   406→              <Badge variant="outline" className="text-[9px] h-4">
+   407→                ۵ اکتاو
+   408→              </Badge>
+   409→            </div>
+   410→          </div>
+   411→          <ChevronLeft className="h-5 w-5 text-muted-foreground/50 group-hover:text-emerald-500 transition-colors" />
+   412→        </CardContent>
+   413→      </Card>
+   414→    );
+   415→  }
+   416→
+   417→  // ─── Result display config ───────────────────────────────
+   418→  const resultConfig = {
+   419→    correct: {
+   420→      label: 'درست!',
+   421→      color: 'text-emerald-500',
+   422→      bg: 'bg-emerald-500',
+   423→      glow: 'shadow-emerald-500/40',
+   424→      border: 'border-emerald-400',
+   425→      icon: <CheckCircle2 className="h-6 w-6 text-emerald-500" />,
+   426→      sub: `${PERSIAN_LABELS[selectedNote]} ${selectedOctave} (${selectedNote}${toPersianNum(selectedOctave)})`,
+   427→    },
+   428→    'wrong-octave': {
+   429→      label: 'نت درسته ولی اکتاو اشتباه',
+   430→      color: 'text-amber-500',
+   431→      bg: 'bg-amber-500',
+   432→      glow: 'shadow-amber-500/40',
+   433→      border: 'border-amber-400',
+   434→      icon: <AlertTriangle className="h-6 w-6 text-amber-500" />,
+   435→      sub: detected ? `شما خواندید: ${detected.note}${toPersianNum(detected.octave)}` : '',
+   436→    },
+   437→    wrong: {
+   438→      label: 'اشتباه',
+   439→      color: 'text-red-500',
+   440→      bg: 'bg-red-500',
+   441→      glow: 'shadow-red-500/40',
+   442→      border: 'border-red-400',
+   443→      icon: <XCircle className="h-6 w-6 text-red-500" />,
+   444→      sub: detected ? `شما خواندید: ${detected.note}${toPersianNum(detected.octave)}` : 'صدایی شنیده نشد',
+   445→    },
+   446→  } as const;
+   447→
+   448→  // ─── Active (expanded) ───────────────────────────────────
+   449→  return (
+   450→    <Card className="border border-border/40 bg-card/90 backdrop-blur-sm shadow-lg shadow-black/[0.04] overflow-hidden">
+   451→      <CardHeader className="pb-2 pt-4 px-4">
+   452→        <div className="flex items-center justify-between">
+   453→          <CardTitle className="text-sm font-bold flex items-center gap-2">
+   454→            <Target className="h-4 w-4 text-emerald-500" />
+   455→            تمرین نت تکی
+   456→          </CardTitle>
+   457→          <Button
+   458→            variant="ghost"
+   459→            size="sm"
+   460→            onClick={() => {
+   461→              cleanupAudio();
+   462→              setPhase('idle');
+   463→              setExpanded(false);
+   464→            }}
+   465→            className="h-7 w-7 p-0 text-muted-foreground"
+   466→            title="بستن"
+   467→          >
+   468→            <ChevronLeft className="h-4 w-4" />
+   469→          </Button>
+   470→        </div>
+   471→      </CardHeader>
+   472→
+   473→      <CardContent className="px-4 pb-4 space-y-4">
+   474→        {/* Note + Octave selectors */}
+   475→        <div className="flex gap-2">
+   476→          <div className="flex-1">
+   477→            <label className="text-[10px] text-muted-foreground mb-1 block">نت</label>
+   478→            <Select value={selectedNote} onValueChange={handleNoteChange}>
+   479→              <SelectTrigger className="h-9 text-sm">
+   480→                <SelectValue />
+   481→              </SelectTrigger>
+   482→              <SelectContent>
+   483→                {NOTE_NAMES.map((n) => (
+   484→                  <SelectItem key={n} value={n} className="text-sm">
+   485→                    {PERSIAN_LABELS[n]} ({n})
+   486→                  </SelectItem>
+   487→                ))}
+   488→              </SelectContent>
+   489→            </Select>
+   490→          </div>
+   491→          <div className="w-24">
+   492→            <label className="text-[10px] text-muted-foreground mb-1 block">اکتاو</label>
+   493→            <Select value={String(selectedOctave)} onValueChange={handleOctaveChange}>
+   494→              <SelectTrigger className="h-9 text-sm">
+   495→                <SelectValue />
+   496→              </SelectTrigger>
+   497→              <SelectContent>
+   498→                {OCTAVES.map((o) => (
+   499→                  <SelectItem key={o} value={String(o)} className="text-sm">
+   500→                    {toPersianNum(o)}
+   501→                  </SelectItem>
+   502→                ))}
+   503→              </SelectContent>
+   504→            </Select>
+   505→          </div>
+   506→        </div>
+   507→
+   508→        {/* Target note display */}
+   509→        <AnimatePresence mode="wait">
+   510→          <motion.div
+   511→            key={`${selectedNote}-${selectedOctave}`}
+   512→            initial={{ scale: 0.9, opacity: 0 }}
+   513→            animate={{ scale: 1, opacity: 1 }}
+   514→            exit={{ scale: 0.9, opacity: 0 }}
+   515→            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   516→            className="flex flex-col items-center py-2"
+   517→          >
+   518→            <div className="relative">
+   519→              {/* Glow ring when recording */}
+   520→              {phase === 'recording' && (
+   521→                <motion.div
+   522→                  className={cn(
+   523→                    'absolute -inset-3 rounded-full blur-lg',
+   524→                    detected && detected.note === selectedNote && detected.octave === selectedOctave
+   525→                      ? 'bg-emerald-500/30'
+   526→                      : 'bg-red-500/20',
+   527→                  )}
+   528→                  animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.05, 1] }}
+   529→                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+   530→                />
+   531→              )}
+   532→
+   533→              {/* Result glow */}
+   534→              {phase === 'result' && result && (
+   535→                <motion.div
+   536→                  className={cn(
+   537→                    'absolute -inset-4 rounded-full blur-xl',
+   538→                    resultConfig[result].glow,
+   539→                  )}
+   540→                  initial={{ opacity: 0, scale: 0.8 }}
+   541→                  animate={{ opacity: 0.6, scale: 1 }}
+   542→                  transition={{ duration: 0.5 }}
+   543→                />
+   544→              )}
+   545→
+   546→              <div
+   547→                className={cn(
+   548→                  'relative h-28 w-28 rounded-full flex flex-col items-center justify-center border-2 transition-all duration-300',
+   549→                  'bg-gradient-to-br from-muted/80 to-muted/40',
+   550→                  phase === 'recording'
+   551→                    ? detected && detected.note === selectedNote && detected.octave === selectedOctave
+   552→                      ? 'border-emerald-400 shadow-lg shadow-emerald-500/25'
+   553→                      : 'border-red-400 shadow-lg shadow-red-500/20'
+   554→                    : phase === 'result' && result
+   555→                      ? cn('border', resultConfig[result].border, 'shadow-lg', resultConfig[result].glow)
+   556→                      : 'border-border/30 hover:border-border/50',
+   557→                )}
+   558→              >
+   559→                {phase === 'result' && result ? (
+   560→                  <>
+   561→                    {resultConfig[result].icon}
+   562→                    <span className={cn('text-2xl font-bold mt-1', resultConfig[result].color)}>
+   563→                      {PERSIAN_LABELS[selectedNote]}
+   564→                    </span>
+   565→                    <span className="text-[10px] text-muted-foreground">
+   566→                      {selectedNote}{toPersianNum(selectedOctave)}
+   567→                    </span>
+   568→                  </>
+   569→                ) : (
+   570→                  <>
+   571→                    <span
+   572→                      className={cn(
+   573→                        'text-4xl font-bold bg-gradient-to-br bg-clip-text text-transparent',
+   574→                        NOTE_GRADIENTS[selectedNote],
+   575→                      )}
+   576→                    >
+   577→                      {PERSIAN_LABELS[selectedNote]}
+   578→                    </span>
+   579→                    <span className="text-xs text-muted-foreground mt-0.5">
+   580→                      {selectedNote}{toPersianNum(selectedOctave)}
+   581→                    </span>
+   582→                    <span className="text-[10px] text-muted-foreground/60 font-mono">
+   583→                      {targetFreq} Hz
+   584→                    </span>
+   585→                  </>
+   586→                )}
+   587→              </div>
+   588→            </div>
+   589→          </motion.div>
+   590→        </AnimatePresence>
+   591→
+   592→        {/* Real-time detected note during recording */}
+   593→        <AnimatePresence>
+   594→          {phase === 'recording' && (
+   595→            <motion.div
+   596→              initial={{ opacity: 0, y: -5 }}
+   597→              animate={{ opacity: 1, y: 0 }}
+   598→              exit={{ opacity: 0, y: -5 }}
+   599→              className="text-center space-y-1"
+   600→            >
+   601→              {detected ? (
+   602→                <>
+   603→                  <div className="flex items-center justify-center gap-2">
+   604→                    <Mic className={cn(
+   605→                      'h-3.5 w-3.5',
+   606→                      detected.note === selectedNote && detected.octave === selectedOctave
+   607→                        ? 'text-emerald-500'
+   608→                        : 'text-red-400',
+   609→                    )} />
+   610→                    <span className={cn(
+   611→                      'text-sm font-medium',
+   612→                      detected.note === selectedNote && detected.octave === selectedOctave
+   613→                        ? 'text-emerald-500'
+   614→                        : 'text-red-400',
+   615→                    )}>
+   616→                      شناسایی: {detected.note}{toPersianNum(detected.octave)} ({Math.round(detected.frequency)} Hz)
+   617→                    </span>
+   618→                  </div>
+   619→                  <div className="flex items-center justify-center gap-1.5">
+   620→                    <span className={cn(
+   621→                      'text-xs px-2 py-0.5 rounded-full font-medium',
+   622→                      detected.note === selectedNote && detected.octave === selectedOctave && Math.abs(detected.cents) <= 5
+   623→                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+   624→                        : detected.note === selectedNote
+   625→                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+   626→                          : 'bg-red-500/15 text-red-600 dark:text-red-400',
+   627→                    )}>
+   628→                      {detected.note === selectedNote && detected.octave === selectedOctave && Math.abs(detected.cents) <= 5
+   629→                        ? '✓ مطابقت دارد'
+   630→                        : detected.note === selectedNote
+   631→                          ? 'نت درسته، اکتاو نه'
+   632→                          : '✗ مطابقت ندارد'}
+   633→                    </span>
+   634→                  </div>
+   635→                </>
+   636→              ) : (
+   637→                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+   638→                  <Mic className="h-3.5 w-3.5 animate-pulse" />
+   639→                  <span className="text-xs">در حال گوش دادن... صدا بدهید</span>
+   640→                </div>
+   641→              )}
+   642→            </motion.div>
+   643→          )}
+   644→        </AnimatePresence>
+   645→
+   646→        {/* Result message */}
+   647→        <AnimatePresence>
+   648→          {phase === 'result' && result && (
+   649→            <motion.div
+   650→              initial={{ opacity: 0, scale: 0.9 }}
+   651→              animate={{ opacity: 1, scale: 1 }}
+   652→              exit={{ opacity: 0, scale: 0.9 }}
+   653→              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   654→              className="text-center space-y-1"
+   655→            >
+   656→              <p className={cn('text-lg font-bold', resultConfig[result].color)}>
+   657→                {resultConfig[result].label}
+   658→              </p>
+   659→              <p className="text-xs text-muted-foreground">{resultConfig[result].sub}</p>
+   660→            </motion.div>
+   661→          )}
+   662→        </AnimatePresence>
+   663→
+   664→        {/* Error message */}
+   665→        {error && (
+   666→          <p className="text-xs text-red-500 text-center">{error}</p>
+   667→        )}
+   668→
+   669→        {/* Action buttons */}
+   670→        <div className="flex items-center justify-center gap-2">
+   671→          {/* Play reference tone */}
+   672→          <Button
+   673→            variant="outline"
+   674→            size="sm"
+   675→            onClick={handlePlayReference}
+   676→            disabled={phase === 'recording'}
+   677→            className="h-9 gap-1.5"
+   678→          >
+   679→            <Volume2 className="h-3.5 w-3.5" />
+   680→            <span className="hidden sm:inline text-xs">شنیدن</span>
+   681→          </Button>
+   682→
+   683→          {/* Start / Stop */}
+   684→          <Button
+   685→            onClick={handleStartStop}
+   686→            className={cn(
+   687→              'h-10 px-6 rounded-full font-medium transition-all duration-300',
+   688→              phase === 'recording'
+   689→                ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/25'
+   690→                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25',
+   691→            )}
+   692→          >
+   693→            <AnimatePresence mode="wait" initial={false}>
+   694→              {phase === 'recording' ? (
+   695→                <motion.span
+   696→                  key="stop"
+   697→                  initial={{ scale: 0, rotate: -90 }}
+   698→                  animate={{ scale: 1, rotate: 0 }}
+   699→                  exit={{ scale: 0, rotate: 90 }}
+   700→                  className="flex items-center gap-2"
+   701→                >
+   702→                  <Square className="h-4 w-4" fill="currentColor" />
+   703→                  توقف
+   704→                </motion.span>
+   705→              ) : (
+   706→                <motion.span
+   707→                  key="start"
+   708→                  initial={{ scale: 0, rotate: 90 }}
+   709→                  animate={{ scale: 1, rotate: 0 }}
+   710→                  exit={{ scale: 0, rotate: -90 }}
+   711→                  className="flex items-center gap-2"
+   712→                >
+   713→                  <Mic className="h-4 w-4" />
+   714→                  شروع
+   715→                </motion.span>
+   716→              )}
+   717→            </AnimatePresence>
+   718→          </Button>
+   719→
+   720→          {/* Next note */}
+   721→          <Button
+   722→            variant="outline"
+   723→            size="sm"
+   724→            onClick={handleNextNote}
+   725→            className="h-9 gap-1.5"
+   726→          >
+   727→            <Shuffle className="h-3.5 w-3.5" />
+   728→            <span className="hidden sm:inline text-xs">نت بعدی</span>
+   729→          </Button>
+   730→        </div>
+   731→
+   732→        {/* Stats */}
+   733→        <div className="flex items-center justify-between">
+   734→          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+   735→            <span>تلاش: <span className="font-medium text-foreground">{toPersianNum(stats.total)}</span></span>
+   736→            <span>درست: <span className="font-medium text-emerald-500">{toPersianNum(stats.correct)}</span></span>
+   737→            <span className="flex items-center gap-0.5">
+   738→              <Zap className="h-3 w-3 text-amber-500" />
+   739→              {toPersianNum(stats.streak)}
+   740→            </span>
+   741→          </div>
+   742→          <Button
+   743→            variant="ghost"
+   744→            size="sm"
+   745→            onClick={handleResetStats}
+   746→            className="h-7 px-2 text-[10px] text-muted-foreground hover:text-foreground gap-1"
+   747→          >
+   748→            <RotateCcw className="h-3 w-3" />
+   749→            بازنشانی
+   750→          </Button>
+   751→        </div>
+   752→      </CardContent>
+   753→    </Card>
+   754→  );
+   755→}
+   756→

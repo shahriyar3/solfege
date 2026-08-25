@@ -326,24 +326,20 @@ export function TunerGauge({
       {/* ── Accuracy Feedback (below arc) ── */}
       <div className="flex flex-col items-center gap-0.5 min-h-[3.5rem]">
         {isActive ? (
-          <>
-            <AnimatePresence mode="wait">
-              <motion.div
-                className={cn('text-xl sm:text-2xl font-bold tracking-tight', feedbackCls)}
-                key={accuracyText}
-                initial={{ y: 6, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -6, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {accuracyText}
-              </motion.div>
-            </AnimatePresence>
-            <div className={cn('text-xs font-mono tabular-nums', feedbackCls)}>{centsLabel}</div>
-            <div className={cn('text-[11px] font-mono tracking-wider', feedbackCls)}>
-              {directionText}
-            </div>
-          </>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${accuracyText}-${Math.round(cents)}`}
+              className="flex flex-col items-center gap-0.5"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.12 }}
+            >
+              <div className={cn('text-xl sm:text-2xl font-bold tracking-tight', feedbackCls)}>{accuracyText}</div>
+              <div className={cn('text-xs font-mono tabular-nums', feedbackCls)}>{centsLabel}</div>
+              <div className={cn('text-[11px] font-mono tracking-wider', feedbackCls)}>{directionText}</div>
+            </motion.div>
+          </AnimatePresence>
         ) : (
           <div className="text-muted-foreground/40 text-sm mt-4 flex items-center gap-2">
             <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 animate-float" />

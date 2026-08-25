@@ -31,6 +31,8 @@ import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
 import { NoteParticles } from '@/components/note-particles';
 import { DailyStreak, type DailyStreakHandle } from '@/components/daily-streak';
+import { SingleNotePractice } from '@/components/single-note-practice';
+import { playNote } from '@/lib/audio-playback';
 import { cn } from '@/lib/utils';
 import {
   Mic,
@@ -322,6 +324,7 @@ export default function Home() {
                     currentNote={currentPitch?.note}
                     targetNote={practiceTarget ?? undefined}
                     highlightedNotes={highlightedNotes}
+                    onClick={(_note, _octave, freq) => playNote(freq, 0.6)}
                   />
                 </div>
 
@@ -422,6 +425,9 @@ export default function Home() {
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 animate-fade-up animation-delay-200">
             {/* Daily streak */}
             <DailyStreak ref={streakRef} />
+
+            {/* Single note practice */}
+            <SingleNotePractice />
 
             {/* Stats card */}
             <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover overflow-hidden">

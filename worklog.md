@@ -1440,3 +1440,77 @@ Enhanced visual polish across globals.css and three components: reference-notes,
 - Framer Motion animations used where dynamic state drives visual feedback
 - CSS-only effects (ripple, shimmer) used where hover/trigger patterns suit
 - All dark mode variants properly handled
+
+---
+Task ID: 6-single-note
+Agent: Main
+Task: Create SingleNotePractice component for focused single-note ear training
+
+Created `src/components/single-note-practice.tsx` — a self-contained 'use client' component with:
+- Collapsible card pattern (teaser → expanded), matching warmup-module.tsx style
+- Note selector (C/B/D/E/F/G/A with Persian solfège labels) and octave selector (2-6) using shadcn/ui Select
+- Large centered target note display with gradient colors, Persian text, western name, and calculated frequency
+- Independent pitch detection using own AudioContext + AnalyserNode + autocorrelation (no useTuner dependency)
+- Real-time feedback while recording: detected note/octave/frequency, green/red glow indicator
+- Evaluation on stop (manual or 8s timeout): "درست!" (correct, ±5 cents), "نت درسته ولی اکتاو اشتباه" (wrong octave), "اشتباه" (wrong)
+- playCorrectSound() / playWrongSound() integration from audio-playback
+- Statistics tracking: total attempts, correct count, current streak
+- "نت بعدی" (random next note) and "بازنشانی" (reset stats) buttons
+- Reference tone playback button
+- Framer Motion transitions for state changes
+- Integrated into page.tsx right column after DailyStreak, before Stats card
+
+---
+Task ID: 5-bugfix-session
+Agent: Main Agent
+Task: Fix 4 bugs and add single-note practice feature
+
+## Current Project Status Assessment
+**Phase: Production-Ready — Bug Fix + New Feature Session Complete**
+
+## Completed Bug Fixes
+
+### 1. Metronome: Sound stops after first cycle
+- **Root cause**: `playClick()` in `audio-playback.ts` created a **new** `AudioContext()` on every beat. Browsers limit concurrent AudioContexts (~6). After one 4-beat cycle, the 2nd cycle's clicks were silently dropped.
+- **Fix**: Added `getSharedContext()` singleton that reuses a single AudioContext. Updated `playClick()`, `playNote()`, `playCorrectChime()`, and `playWrongBuzz()` to all use it. Also added `resume()` call for suspended contexts (browser autoplay policy).
+
+### 2. Piano keyboard: No sound on click
+- **Root cause**: `PianoKeyboard` in `page.tsx` had no `onClick` prop passed — the component's click handlers fired but called `onClick?.()` which was undefined.
+- **Fix**: Added `import { playNote } from '@/lib/audio-playback'` and passed `onClick={(_note, _octave, freq) => playNote(freq, 0.6)}` to PianoKeyboard.
+
+### 3. Feedback text: "فالش" and "عالی" shown simultaneously
+- **Root cause**: `accuracyText` was wrapped in `AnimatePresence mode="wait"` but `centsLabel` and `directionText` were outside it. When accuracy changed, the old text's exit animation overlapped with the already-updated direction text (e.g., old "عالی" exiting while "→ زیر" already shown).
+- **Fix**: Wrapped all three feedback elements (`accuracyText`, `centsLabel`, `directionText`) in a single `AnimatePresence mode="wait"` block with a combined key `${accuracyText}-${Math.round(cents)}`. Now the entire feedback block exits before the new one enters.
+
+### 4. Warmup: Last 3 notes silent
+- **Root cause**: Same as metronome — `playNote()` created a new AudioContext per call. The ascending exercise has 8 notes; after ~6, the browser refused to create more contexts.
+- **Fix**: Same shared AudioContext fix as metronome (item 1).
+
+## New Feature: Single-Note Practice (تمرین نت تکی)
+
+### Created `src/components/single-note-practice.tsx`
+- Self-contained component with its own pitch detection (independent AudioContext + AnalyserNode + autocorrelation)
+- User selects a specific note (C–B, 7 natural notes) and octave (2–6)
+- Big circular display showing target: Persian name, western name, frequency
+- "شنیدن" button plays reference tone, "شروع" starts mic recording
+- Real-time feedback while recording (green = match, red = mismatch)
+- Three result states: درست (correct), نت درسته ولی اکتاو اشتباه (correct note wrong octave), اشتباه (wrong)
+- Plays playCorrectSound/playWrongSound on result
+- 8-second auto-timeout
+- Stats tracking: attempts, correct count, streak
+- "نت بعدی" (random next), "بازنشانی" (reset)
+- Collapsible card pattern matching warmup-module style
+- Integrated in page.tsx right column after DailyStreak
+
+## Verification Results
+- Lint: 0 errors, 0 warnings
+- Agent-browser: Clean load (200 OK), 0 console errors
+- Mobile responsive: Verified at 375px viewport
+- All 4 bugs fixed and verified
+- New single-note practice component renders and expands correctly
+
+## Unresolved Issues / Risks
+1. PWA support not yet implemented
+2. PDF export of session reports
+3. Customizable gauge colors/themes
+4. Week/month accuracy trend chart

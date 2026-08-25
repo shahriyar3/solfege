@@ -70,17 +70,17 @@ export function getSolfeggioScale(baseOctave: number = 4): NoteInfo[] {
   });
 }
 
-/** Play a note using Web Audio oscillator */
+/** Play a note using Web Audio oscillator (reuses a shared AudioContext) */
 export function playNote(frequency: number, duration: number = 1.0): { stop: () => void } {
-  const ctx = new AudioContext();
+  const ctx = getSharedContext();
+  const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+  osc.frequency.setValueAtTime(frequency, now);
 
   // ADSR-like envelope for a pleasant tone
-  const now = ctx.currentTime;
   gain.gain.setValueAtTime(0, now);
   gain.gain.linearRampToValueAtTime(0.3, now + 0.05); // attack
   gain.gain.linearRampToValueAtTime(0.2, now + 0.1); // decay to sustain
@@ -98,23 +98,23 @@ export function playNote(frequency: number, duration: number = 1.0): { stop: () 
         gain.gain.cancelScheduledValues(now);
         gain.gain.linearRampToValueAtTime(0, now + 0.02);
         osc.stop(now + 0.02);
-      } catch (e) {
+      } catch (_e) {
         // already stopped
       }
     },
   };
 }
 
-/** Play a metronome click */
+/** Play a metronome click (reuses a shared AudioContext) */
 export function playClick(frequency: number = 1000, duration: number = 0.05): { stop: () => void } {
-  const ctx = new AudioContext();
+  const ctx = getSharedContext();
+  const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+  osc.frequency.setValueAtTime(frequency, now);
 
-  const now = ctx.currentTime;
   gain.gain.setValueAtTime(0.4, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
@@ -125,14 +125,14 @@ export function playClick(frequency: number = 1000, duration: number = 0.05): { 
 
   return {
     stop: () => {
-      try { osc.stop(); } catch (e) { /* */ }
+      try { osc.stop(); } catch (_e) { /* */ }
     },
   };
 }
 
-/** Play a pleasant chime sound for correct answer feedback */
+/** Play a pleasant chime sound for correct answer feedback (reuses shared context) */
 export function playCorrectChime(): { stop: () => void } {
-  const ctx = new AudioContext();
+  const ctx = getSharedContext();
   const now = ctx.currentTime;
 
   // Two harmonious tones (C5 + E5)
@@ -163,11 +163,27 @@ export function playCorrectChime(): { stop: () => void } {
   };
 }
 
+/** Shared AudioContext singleton — avoids hitting browser limits on concurrent contexts */
+let sharedCtx: AudioContext | null = null;
+function getSharedContext(): AudioContext {
+  if (!sharedCtx || sharedCtx.state === 'closed') {
+    sharedCtx = new AudioContext();
+  }
+  // Resume if suspended (browser autoplay policy)
+  if (sharedCtx.state === 'suspended') {
+    sharedCtx.resume();
+  }
+  return sharedCtx;
+}
+
 // Reusable AudioContext for feedback sounds (created on first use, reused thereafter)
 let feedbackCtx: AudioContext | null = null;
 function getFeedbackContext(): AudioContext {
   if (!feedbackCtx || feedbackCtx.state === 'closed') {
     feedbackCtx = new AudioContext();
+  }
+  if (feedbackCtx.state === 'suspended') {
+    feedbackCtx.resume();
   }
   return feedbackCtx;
 }
@@ -242,9 +258,9 @@ export function playWrongSound(): { stop: () => void } {
   };
 }
 
-/** Play a subtle buzz for wrong answer feedback */
+/** Play a subtle buzz for wrong answer feedback (reuses shared context) */
 export function playWrongBuzz(): { stop: () => void } {
-  const ctx = new AudioContext();
+  const ctx = getSharedContext();
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   osc.type = 'sawtooth';
