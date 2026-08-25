@@ -165,8 +165,11 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
                         ? 'bg-muted'
                         : 'bg-muted/40'
                   )}
-                  animate={isCurrentBeat ? { scale: [1, 1.6, 1], y: [0, -4, 0] } : { scale: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                  animate={isCurrentBeat ? { scale: 1.6, y: -4 } : { scale: 1, y: 0 }}
+                  transition={isCurrentBeat
+                    ? { type: 'tween', duration: 0.15, yoyo: Infinity, repeatType: 'reverse', ease: 'easeInOut' }
+                    : { type: 'spring', stiffness: 500, damping: 15 }
+                  }
                 />
               </div>
             );
