@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { playClick } from '@/lib/audio-playback';
+import { playClick, ensureAudioReady } from '@/lib/audio-playback';
 import { motion } from 'framer-motion';
 import { Timer, Play, Pause, RotateCcw, Minus, Plus, Hand } from 'lucide-react';
 
@@ -35,6 +35,9 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
 
   useEffect(() => {
     if (isPlaying) {
+      // Pre-warm AudioContext in this render (user click context)
+      ensureAudioReady();
+
       const msPerBeat = (60 / bpm) * 1000;
       let currentBeat = 0;
 
@@ -42,7 +45,7 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
         currentBeat = (currentBeat + 1) % 4;
         setBeat(currentBeat);
         const freq = currentBeat === 0 ? 1200 : 800;
-        playClick(freq, 0.06);
+        playClick(freq, 0.06); // fire-and-forget async
       }, msPerBeat);
 
       timerRef.current = setInterval(() => {

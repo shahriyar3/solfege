@@ -1514,3 +1514,36 @@ Task: Fix 4 bugs and add single-note practice feature
 2. PDF export of session reports
 3. Customizable gauge colors/themes
 4. Week/month accuracy trend chart
+
+---
+Task ID: 7-audio-fix
+Agent: Main
+Task: Fix ALL audio broken across entire application
+
+Work Log:
+- Diagnosed root cause: AudioContext singleton in audio-playback.ts gets stuck in 'suspended' state in iframe/preview environments after HMR. The synchronous resume() call didn't guarantee the context was running before oscillators were scheduled.
+- Rewrote audio-playback.ts to make all AudioContext management fully async:
+  - getSharedContext() and getFeedbackContext() are now async functions that properly await resume()
+  - All play functions (playNote, playClick, playCorrectChime, playCorrectSound, playWrongSound, playWrongBuzz) are now async and return Promise<PlayHandle>
+  - Added ensureAudioReady() export for pre-warming context in user gesture handlers
+  - Added resetAudioContexts() export for emergency recovery
+  - Fixed playNote's stop function to use ctx.currentTime at stop-time instead of stale cached `now`
+  - Added try/catch around all play functions for graceful degradation
+- Updated ALL callers to handle async play functions:
+  - metronome.tsx: fire-and-forget playClick in setInterval, pre-warm with ensureAudioReady
+  - warmup-module.tsx: await playNote in async playStepFn, pre-warm on play button click
+  - note-quiz.tsx: async handlePlay to await playNote for stop handle
+  - scale-patterns.tsx: async setTimeout callback to await playNote
+  - practice-mode.tsx: async handlePlayReference to await playNote for stop handle
+  - interval-trainer.tsx: async playRootNote and playTargetNote
+  - breathing-exercise.tsx: close stale context before creating new one, add resume call
+  - reference-notes.tsx: fire-and-forget (no change needed)
+  - page.tsx piano: fire-and-forget (no change needed)
+  - single-note-practice.tsx: fire-and-forget (no change needed)
+- Verified: no lint errors, no TS errors in audio files, clean compilation, no runtime errors in browser
+
+Stage Summary:
+- Complete rewrite of audio system from synchronous to asynchronous
+- All 10+ components that use audio have been updated
+- AudioContext now properly awaits resume() before scheduling any oscillators
+- This fixes: metronome stopping after 1 cycle, piano keyboard no sound, warmup last notes silent, ALL audio broken in iframe environments

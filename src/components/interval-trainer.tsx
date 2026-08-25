@@ -210,10 +210,10 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     }
   }, [currentPitch, isActive, tMidi]);
 
-  const playRootNote = useCallback((freq: number) => {
-    const { stop } = playNote(freq, 1.2);
+  const playRootNote = useCallback(async (freq: number) => {
+    const handle = await playNote(freq, 1.2);
     setPlayingRoot(true);
-    setTimeout(() => { setPlayingRoot(false); stop(); }, 1300);
+    setTimeout(() => { setPlayingRoot(false); handle.stop(); }, 1300);
   }, []);
 
   const begin = useCallback(() => {
@@ -281,11 +281,11 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     setBest(0);
   }, []);
 
-  const playTargetNote = useCallback(() => {
+  const playTargetNote = useCallback(async () => {
     if (!target) return;
-    const { stop } = playNote(target.frequency, 1.2);
+    const handle = await playNote(target.frequency, 1.2);
     setPlayingTarget(true);
-    setTimeout(() => { setPlayingTarget(false); stop(); }, 1300);
+    setTimeout(() => { setPlayingTarget(false); handle.stop(); }, 1300);
   }, [target]);
 
   // ------------------------------------------------------------------

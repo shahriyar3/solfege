@@ -101,8 +101,17 @@ export function BreathingExercise({ soundEnabled }: BreathingExerciseProps) {
       if (!soundEnabled) return;
       stopAudio();
       try {
-        const ctx = audioCtxRef.current ?? new AudioContext();
+        // Always create a fresh context for reliability
+        if (audioCtxRef.current) {
+          try { audioCtxRef.current.close(); } catch { /* */ }
+          audioCtxRef.current = null;
+        }
+        const ctx = new AudioContext();
         audioCtxRef.current = ctx;
+        // Ensure context is running (resume in user gesture context)
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';

@@ -94,14 +94,14 @@ export function NoteQuiz({ soundEnabled = true }: NoteQuizProps) {
     setSelected(null);
   }, [scale]);
 
-  const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(async () => {
     if (!soundEnabled || !currentNote) return;
-    const { stop } = playNote(currentNote.frequency, 1.5);
+    const handle = await playNote(currentNote.frequency, 1.5);
     setIsPlaying(true);
     setHasPlayed(true);
     setTimeout(() => {
       setIsPlaying(false);
-      stop();
+      handle.stop();
     }, 1600);
   }, [currentNote, soundEnabled]);
 

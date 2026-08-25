@@ -108,10 +108,10 @@ export function ScalePatterns({ soundEnabled = true }: ScalePatternsProps) {
     const stepMs = (noteDuration + noteGap) * 1000;
 
     allNotes.forEach((freq, idx) => {
-      const t = setTimeout(() => {
+      const t = setTimeout(async () => {
         if (!mountedRef.current) return;
-        const { stop } = playNote(freq, noteDuration);
-        stopCallbacksRef.current.push(stop);
+        const handle = await playNote(freq, noteDuration);
+        stopCallbacksRef.current.push(handle.stop);
       }, idx * stepMs);
       playTimeoutsRef.current.push(t);
     });

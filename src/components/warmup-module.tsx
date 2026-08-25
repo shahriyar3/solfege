@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { playNote, getSolfeggioScale } from '@/lib/audio-playback';
+import { playNote, getSolfeggioScale, ensureAudioReady } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -227,7 +227,7 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
 
   // Keep latest playStep in a ref so setTimeout can always call the current version
   const playStepFn = useCallback(
-    (stepIndex: number) => {
+    async (stepIndex: number) => {
       if (stepIndex >= steps.length) {
         stopAll();
         return;
@@ -242,8 +242,8 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
           stopRef.current();
           stopRef.current = null;
         }
-        const { stop } = playNote(step.frequency, step.duration);
-        stopRef.current = stop;
+        const handle = await playNote(step.frequency, step.duration);
+        stopRef.current = handle.stop;
       }
 
       // Determine delay before next step
@@ -251,10 +251,9 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
       if (activeExercise === 'trill') {
         delay = SPEED_CONFIG[speed].ms;
       } else if (activeExercise === 'sustain') {
-        delay = step.duration * 1000 + 400; // 3s hold + 400ms pause
+        delay = step.duration * 1000 + 400;
       } else {
-        // ascending / descending
-        delay = step.duration * 1000 + 200; // 0.8s hold + 200ms pause
+        delay = step.duration * 1000 + 200;
       }
 
       timerRef.current = setTimeout(() => {
@@ -273,6 +272,8 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
       stopAll();
       return;
     }
+    // Pre-warm AudioContext in user click context (fire-and-forget)
+    ensureAudioReady();
     setIsPlaying(true);
     setCurrentStep(0);
     playStepRef.current(0);
