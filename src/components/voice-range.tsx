@@ -136,11 +136,11 @@ export function VoiceRange({
   if (!isExpanded) {
     return (
       <Card
-        className="border-dashed border-2 border-border/40 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-violet-300/50 transition-all duration-300 group cursor-pointer"
+        className="border-dashed border-2 border-border/25 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-violet-300/40 transition-all duration-300 group cursor-pointer card-hover"
         onClick={() => setIsExpanded(true)}
       >
         <CardContent className="p-5 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/35 transition-all duration-300 group-hover:scale-105">
             <AudioLines className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
@@ -149,7 +149,7 @@ export function VoiceRange({
               بالاترین و پایین‌ترین نت صدایتان را کشف کنید
             </p>
           </div>
-          <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-violet-500 transition-colors" />
+          <ChevronLeft className="h-5 w-5 text-muted-foreground/50 group-hover:text-violet-500 transition-colors" />
         </CardContent>
       </Card>
     );
@@ -157,7 +157,7 @@ export function VoiceRange({
 
   // ── Expanded card ────────────────────────────────────────
   return (
-    <Card className="border border-border/50 shadow-lg shadow-black/5 overflow-hidden">
+    <Card className="border border-border/40 shadow-lg shadow-black/[0.04] overflow-hidden">
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -197,8 +197,8 @@ export function VoiceRange({
               exit={{ opacity: 0, y: -10 }}
               className="flex flex-col items-center justify-center py-8 text-center"
             >
-              <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                <Music className="h-7 w-7 text-muted-foreground" />
+              <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-3">
+                <Music className="h-7 w-7 text-muted-foreground/50" />
               </div>
               <p className="text-sm text-muted-foreground font-medium">
                 میکروفون را روشن کنید و شروع به خواندن کنید

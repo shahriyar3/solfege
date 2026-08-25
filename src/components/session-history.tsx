@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { History, Trash2, Calendar, Target, BarChart3 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface SessionNote {
   id: string;
@@ -75,14 +76,23 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col" dir="rtl">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+        className="w-full max-w-2xl max-h-[85vh]"
+      >
+      <Card className="w-full max-h-[85vh] flex flex-col shadow-2xl shadow-black/20 border-border/50" dir="rtl">
+        <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border/20">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <History className="h-5 w-5" />
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center">
+              <History className="h-4 w-4 text-white" />
+            </div>
             تاریخچه جلسات
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
             بستن
           </Button>
         </CardHeader>
@@ -92,10 +102,12 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps) {
               در حال بارگذاری...
             </div>
           ) : sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-              <BarChart3 className="h-10 w-10 opacity-30" />
-              <p className="text-sm">هنوز جلسه‌ای ثبت نشده</p>
-              <p className="text-xs opacity-60">پس از تمرین، جلسات اینجا ذخیره می‌شوند</p>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+                <BarChart3 className="h-7 w-7 opacity-30" />
+              </div>
+              <p className="text-sm font-medium">هنوز جلسه‌ای ثبت نشده</p>
+              <p className="text-xs opacity-50">پس از تمرین، جلسات اینجا ذخیره می‌شوند</p>
             </div>
           ) : selectedSession ? (
             <div className="flex flex-col gap-4 h-full">
@@ -180,7 +192,7 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps) {
                   return (
                     <div
                       key={session.id}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-card hover:bg-muted/50 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/40 bg-card hover:bg-muted/30 hover:border-border/60 cursor-pointer transition-all duration-200"
                       onClick={() => setSelectedSession(session)}
                     >
                       <div className="flex-1 min-w-0">
@@ -222,6 +234,7 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps) {
           )}
         </CardContent>
       </Card>
+      </motion.div>
     </div>
   );
 }

@@ -41,6 +41,7 @@ export interface AudioAnalysisConfig {
   minFrequency?: number;
   maxFrequency?: number;
   accuracyThreshold?: number; // cents threshold for "accurate"
+  a4Frequency?: number; // tuning reference (default 440)
 }
 
 const DEFAULT_CONFIG: Required<AudioAnalysisConfig> = {
@@ -48,21 +49,22 @@ const DEFAULT_CONFIG: Required<AudioAnalysisConfig> = {
   minFrequency: 60, // ~B1
   maxFrequency: 1500, // ~F#6
   accuracyThreshold: 10,
+  a4Frequency: 440,
 };
 
 /**
  * Convert frequency to MIDI note number (fractional)
  */
-function frequencyToMidi(freq: number): number {
-  return 12 * Math.log2(freq / A4_FREQUENCY) + A4_MIDI_NUMBER;
+function frequencyToMidi(freq: number, a4: number): number {
+  return 12 * Math.log2(freq / a4) + A4_MIDI_NUMBER;
 }
 
 /**
  * Convert frequency to the nearest musical note with cent deviation
  */
-function frequencyToNote(freq: number, accuracyThreshold: number): PitchResult {
-  const midiNumber = Math.round(frequencyToMidi(freq));
-  const exactMidi = frequencyToMidi(freq);
+function frequencyToNote(freq: number, accuracyThreshold: number, a4: number): PitchResult {
+  const midiNumber = Math.round(frequencyToMidi(freq, a4));
+  const exactMidi = frequencyToMidi(freq, a4);
   const cents = Math.round((exactMidi - midiNumber) * 100);
   
   // Clamp cents to -50..+50 range
@@ -155,6 +157,7 @@ export class PitchDetector {
   private source: MediaStreamAudioSourceNode | null = null;
   private buffer: Float32Array = new Float32Array(0);
   private config: Required<AudioAnalysisConfig>;
+  private a4Freq: number;
   private animationFrameId: number | null = null;
   private onPitchDetected: ((result: PitchResult | null) => void) | null = null;
   private onVolumeChange: ((volume: number) => void) | null = null;
@@ -162,6 +165,7 @@ export class PitchDetector {
 
   constructor(config?: AudioAnalysisConfig) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.a4Freq = this.config.a4Frequency;
   }
 
   /**
@@ -240,7 +244,7 @@ export class PitchDetector {
     );
 
     if (frequency !== null) {
-      const result = frequencyToNote(frequency, this.config.accuracyThreshold);
+      const result = frequencyToNote(frequency, this.config.accuracyThreshold, this.a4Freq);
       this.onPitchDetected?.(result);
     } else {
       this.onPitchDetected?.(null);
@@ -334,12 +338,13 @@ export function getAccuracyPersianText(cents: number): string {
 /**
  * Get all solfège note names for reference
  */
-export function getSolfeggNotes(): Array<{ note: string; solfege: string; frequency: number }> {
+export function getSolfeggNotes(a4?: number): Array<{ note: string; solfege: string; frequency: number }> {
+  const refA4 = a4 ?? A4_FREQUENCY;
   const notes: Array<{ note: string; solfege: string; frequency: number }> = [];
   for (let octave = 3; octave <= 6; octave++) {
     for (let i = 0; i < 12; i++) {
       const midi = (octave + 1) * 12 + i;
-      const freq = A4_FREQUENCY * Math.pow(2, (midi - A4_MIDI_NUMBER) / 12);
+      const freq = refA4 * Math.pow(2, (midi - A4_MIDI_NUMBER) / 12);
       notes.push({
         note: `${NOTE_NAMES[i]}${octave}`,
         solfege: SOLFEGE_NAMES[NOTE_NAMES[i]],

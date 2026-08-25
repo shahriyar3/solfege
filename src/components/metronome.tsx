@@ -98,15 +98,17 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
     : 0;
 
   return (
-    <Card className="border border-border/50 shadow-lg shadow-black/5">
+    <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
-          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-sm shadow-emerald-500/25">
             <Timer className="h-3.5 w-3.5 text-white" />
           </div>
           <h3 className="text-sm font-bold">مترونوم</h3>
           <div className="flex-1" />
-          <span className="text-xs font-mono text-muted-foreground tabular-nums">{formatTime(elapsed)}</span>
+          {isPlaying && (
+            <span className="text-xs font-mono text-muted-foreground/60 tabular-nums">{formatTime(elapsed)}</span>
+          )}
         </div>
 
         <div className="flex justify-center mb-4">
@@ -138,11 +140,11 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
                 'h-5 w-5 rounded-full transition-colors duration-75',
                 isPlaying && i === beat
                   ? i === 0
-                    ? 'bg-rose-500 shadow-lg shadow-rose-500/50'
-                    : 'bg-emerald-500 shadow-lg shadow-emerald-500/50'
+                    ? 'bg-rose-500 shadow-lg shadow-rose-500/40'
+                    : 'bg-emerald-500 shadow-lg shadow-emerald-500/40'
                   : isPlaying
                     ? 'bg-muted'
-                    : 'bg-muted/60'
+                    : 'bg-muted/40'
               )}
               animate={isPlaying && i === beat ? { scale: [1, 1.4, 1], y: [0, -3, 0] } : { scale: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 500, damping: 15 }}

@@ -637,3 +637,278 @@ Phase 5 focused on visual enhancement of the waveform/frequency display, adding 
 3. PWA support
 4. Metronome + Tuner coexistence
 5. Practice scoring persistence
+
+---
+Task ID: 6
+Agent: Frontend Styling Expert (Phase 6)
+Task: Styling polish — visual refinement, consistency, and micro-interactions
+
+## Completed
+
+### 1. globals.css Enhancements
+- **Glass effect**: Increased blur from 16px→20px, added `saturate(1.4)`, refined light/dark backgrounds, added border-bottom glow
+- **Card hover**: Improved cubic-bezier timing (220ms), increased translateY to -2px, multi-layer shadow system, added border-color transition
+- **Dot grid background**: Reduced opacity (0.03→0.025), increased grid spacing (24px→28px) for subtlety
+- **New: `tuner-card-glow`**: Gradient border (rose→amber→violet) that appears via `.is-active` when recording
+- **New: Entrance animations**: `fade-up` keyframe + `.animate-fade-up` class + stagger delays (100-600ms)
+- **New: `.animate-shimmer`**: Skeleton loading animation using CSS custom properties
+- **New: `.section-label`**: Uppercase micro-label style for section headers
+
+### 2. Header Polish (`page.tsx`)
+- Added subtle `shadow-sm` to header (light mode only)
+- Reduced border opacity (border/40 → border/30)
+- Added `ring-1 ring-white/20` to logo icon for glass-like depth
+- Increased header padding (py-3 → py-3.5)
+- Button borders refined (border-border/50)
+- History button text hidden on mobile (`hidden sm:inline`)
+- Main content padding increased (pt-6 pb-8)
+
+### 3. Main Tuner Card
+- Added `tuner-card-glow is-active` classes — gradient border appears when recording
+- Card background refined (card/90 → card/95)
+- Recording border reduced opacity (rose-500/40 → rose-500/30)
+- Shadow refined (shadow-2xl shadow-rose-500/[0.07])
+- Inner divider opacity reduced (border/30 → border/20)
+- Responsive padding (p-5 sm:p-7 lg:p-8)
+
+### 4. Stats Card
+- Added note count badge in header
+- Stat cells: reduced gradient opacity, added subtle inner shadows
+- Emerald cell: added `shadow-sm shadow-emerald-500/[0.03]`
+
+### 5. Tuner Gauge (`tuner-gauge.tsx`)
+- Volume bar: increased height (h-1 → h-1.5), added `shadow-inner`, inactive state uses `bg-muted-foreground/20`
+- Idle state: Added small dot indicator + reduced opacity (0.50 → 0.40)
+- Accuracy text: added `tracking-tight` and `tabular-nums`
+
+### 6. Piano Keyboard (`piano-keyboard.tsx`)
+- Container: gradient background (`from-zinc-50 to-zinc-100/80`), refined borders and shadows
+- White keys: border-x only (not full border), refined hover to lighter shade
+- Active state: dark mode fix (`dark:text-emerald-800`)
+- Note labels: added `font-medium`
+- Octave markers: reduced opacity, added `font-semibold tabular-nums`
+
+### 7. Practice Mode (`practice-mode.tsx`)
+- Teaser card: added `card-hover`, reduced border opacity, icon `group-hover:scale-105`, chevron opacity reduced
+- Active card: border/50 → border/40, shadow refined
+- Score area: gradient background + subtle border
+
+### 8. Session History Modal (`session-history.tsx`)
+- Backdrop: `bg-black/50` → `bg-black/40 backdrop-blur-md` (stronger glassmorphism)
+- Added Framer Motion entry animation (scale + opacity + y)
+- Card: `shadow-2xl shadow-black/20 border-border/50`
+- Header: added icon container with gradient, border-bottom separator
+- Empty state: icon in rounded container, `font-medium` title
+- Session list items: hover transition-all, refined border/40 + hover:border/60
+- Added `motion` import
+
+### 9. Metronome (`metronome.tsx`)
+- Card: added `bg-card/90 backdrop-blur-sm card-hover`
+- Timer icon: added `shadow-sm shadow-emerald-500/25`
+- Timer display: hidden when not playing (reduces visual noise)
+- Beat dots: reduced inactive opacity (muted/60 → muted/40)
+
+### 10. Voice Range (`voice-range.tsx`)
+- Teaser: added `card-hover`, refined borders, icon `group-hover:scale-105`
+- Empty state icon: reduced opacity
+
+### 11. Performance Chart (`performance-chart.tsx`)
+- Teaser: added `card-hover`, refined hover border, icon `group-hover:scale-105`
+- Expanded card: added `overflow-hidden`
+- Empty state: icon in rounded container, `font-medium` title
+
+### 12. Waveform Visualizer (`waveform-visualizer.tsx`)
+- Container: gradient background + subtle border
+
+### 13. Note History (`note-history.tsx`)
+- Empty state: icon bg reduced (muted/50 → muted/30), icon opacity reduced, title `font-medium`
+
+### 14. Tips Section (`page.tsx`)
+- Card border: border/30 → border/25, bg reduced (muted/5 → muted/[0.03])
+- Header: icon in gradient container instead of raw emoji
+- Added `animate-fade-up animation-delay-400`
+- Tip items: added `py-1` padding, icon offset `mt-px`
+
+### 15. Footer
+- Border: border/30 → border/20
+- Text opacity: text-muted-foreground → text-muted-foreground/70
+- Separator: opacity/40 → opacity/30
+- Padding: py-3 → py-3.5
+
+### 16. Layout Columns
+- Left column: `animate-fade-up` (no delay)
+- Right column: `animate-fade-up animation-delay-200` (staggered)
+
+## File Manifest (Modified in Phase 6)
+- `src/app/globals.css` — Entrance animations, glass refinement, card-hover, tuner-card-glow, shimmer
+- `src/app/page.tsx` — Header, footer, tips, tuner card, stats, layout columns, mobile
+- `src/components/tuner-gauge.tsx` — Volume bar, idle state, tracking
+- `src/components/piano-keyboard.tsx` — Container, key borders, dark mode, labels
+- `src/components/practice-mode.tsx` — Teaser, active card, score section
+- `src/components/session-history.tsx` — Modal backdrop, entry animation, header, empty state
+- `src/components/metronome.tsx` — Card, icon shadow, timer display, beat dots
+- `src/components/voice-range.tsx` — Teaser, card, empty state
+- `src/components/performance-chart.tsx` — Teaser, expanded card, empty state
+- `src/components/waveform-visualizer.tsx` — Container styling
+- `src/components/note-history.tsx` — Empty state refinement
+- `src/components/achievements.tsx` — Border refinement
+
+## Build Status
+- ✅ `next build` passes with zero errors
+- ✅ All routes compile successfully
+- ⚠️ Pre-existing lint warnings in `useTuner.ts` (not related to Phase 6)
+
+---
+Task ID: 6-features
+Agent: Features Sub-agent
+Task: 3 new components — Pitch Stability Meter, Settings Drawer, Practice Progress Ring
+
+## Completed - Phase 6 Features
+
+### 1. Pitch Stability Meter (`src/components/pitch-stability.tsx`)
+- Compact horizontal bar showing pitch stability percentage
+- Takes last 30 pitch readings, filters by same note, computes std dev of cents
+- Maps std dev (max 25) to 0-100% stability score
+- 3 visual zones: stable (≥70%, emerald, pulsing dot), wobbly (40-69%, yellow, shaking dot), unstable (<40%, red, shaky dot)
+- Inactive state shows muted placeholder
+- RTL-aware, Framer Motion animations, dark mode support
+- Props: `{ isActive: boolean, noteHistory: PitchResult[] }`
+
+### 2. Settings Drawer (`src/components/settings-drawer.tsx`)
+- Slide-in Sheet from the left side (RTL-appropriate)
+- Glass effect background (`bg-background/80 backdrop-blur-2xl`)
+- Sections with staggered Framer Motion entrance animations:
+  - **A4 Frequency**: Large display with ±1 buttons, shows deviation from standard 440 Hz
+  - **Sound toggle**: Switch component for enabling/disabling reference note sounds
+  - **Accuracy threshold**: 4-option grid (±5, ±10, ±15, ±20 cents) with persisted state
+  - **Theme toggle**: Reuses existing ThemeToggle component
+  - **Keyboard shortcuts**: Reference table for Space and S keys
+  - **Reset all settings**: Danger-styled button resets A4, sound, and accuracy to defaults
+- Reuses shared hooks: `useA4Freq`, `useSoundEnabled`, `usePersistedState`
+- Each section has icon + title + description pattern
+
+### 3. Practice Progress Ring (`src/components/practice-progress-ring.tsx`)
+- SVG circular progress ring (120×120px) with rose-to-amber gradient stroke
+- Center shows: `current/total` in Persian numerals
+- Fire icon + streak number below when streak > 0 (pulsing animation)
+- Score display below the ring
+- Confetti animation (16 colored particles) when 100% complete
+- Smooth stroke animation via Framer Motion
+- Props: `{ current: number, total: number, score: number, streak: number }`
+
+### Integration
+- **page.tsx**: Added `PitchStability` below tuner gauge (before waveform), added settings button (Settings2 icon) in header, added `SettingsDrawer` at page root
+- **practice-mode.tsx**: Imported and placed `PracticeProgressRing` at top of CardContent in active practice mode, passes `score`, `scale.length`, `streak`
+
+## Files Created
+- `src/components/pitch-stability.tsx`
+- `src/components/settings-drawer.tsx`
+- `src/components/practice-progress-ring.tsx`
+
+## Files Modified
+- `src/app/page.tsx` — Imports, settings button, PitchStability placement, SettingsDrawer
+- `src/components/practice-mode.tsx` — Import and placement of PracticeProgressRing
+
+## Lint Status
+- ✅ All new/modified files pass ESLint with zero errors
+- ⚠️ Pre-existing lint errors in `interval-trainer.tsx` and `useTuner.ts` (not related)
+
+---
+Task ID: 12-phase6
+Agent: Main Agent (Phase 6 — Bug Fixes, Styling, New Features)
+Task: Fix bugs, wire A4/sound, improve styling, add 3 new components
+
+## Current Project Status Assessment
+**Phase: Production-Ready Gamified Music Practice Platform — Phase 6 Complete**
+
+Phase 6 focused on fixing identified risks from Phase 5, comprehensive styling polish across 12 files, and adding 3 major new components (pitch stability meter, settings drawer, practice progress ring).
+
+## Bug Fixes
+1. **tuner-gauge.tsx**: Fixed Framer Motion warning — replaced `motion.g` with plain `<g>` using CSS `transition: 'opacity 0.4s'` for the arc segments. The SVG `<g>` element's initial opacity was reading as `undefined` from the DOM during hydration.
+2. **settings-drawer.tsx**: Fixed `Hertz` icon import — `lucide-react` doesn't export `Hertz`. Replaced with `Waves` icon.
+3. **useTuner.ts**: Fixed React Compiler lint error — used `const a4Freq = options?.a4Frequency ?? 440` + added `a4Freq` to `start` callback deps instead of trying to use a ref during render.
+4. **interval-trainer.tsx**: Fixed React Compiler lint error — added missing `soundEnabled` to `reveal` useCallback deps.
+
+## Risk Resolution (from Phase 5)
+1. **A4 calibration now wired to pitch detection**: `pitch-detection.ts` accepts `a4Frequency` in config → `useTuner` passes it via options → `page.tsx` reads from `useA4Freq()` hook. Full chain is now connected.
+2. **Sound toggle now consumed by practice/interval**: Both `PracticeMode` and `IntervalTrainer` accept `soundEnabled` prop and wrap `playCorrectSound()`/`playWrongSound()` calls.
+
+## Styling Improvements (12 files modified)
+- **globals.css**: Enhanced glass effect (blur+saturation), card-hover spring timing, `tuner-card-glow` gradient border, `fade-up` entrance animations with stagger, `animate-shimmer`, `.section-label`
+- **page.tsx**: Header glass+shadow, logo ring, mobile-responsive history button, tuner card active glow, stats note-count badge, refined stat cells, tips section icon+stagger, footer opacity
+- **tuner-gauge.tsx**: Volume bar (h-1.5, shadow-inner, inactive state), idle dot indicator
+- **piano-keyboard.tsx**: Gradient container, border-x keys, refined hover/active dark mode
+- **practice-mode.tsx**: Teaser card-hover, icon group-hover:scale-105, active border consistency
+- **session-history.tsx**: Backdrop blur-md, Framer Motion modal entry, gradient icon header
+- **metronome.tsx**: card-hover, icon shadow, conditional timer display, beat dot opacity
+- **voice-range.tsx**: Teaser card-hover, icon scale, empty state opacity
+- **performance-chart.tsx**: Teaser card-hover, overflow-hidden, empty state container
+- **waveform-visualizer.tsx**: Gradient background + subtle border
+- **note-history.tsx**: Empty state icon/container refinement
+- **achievements.tsx**: Border opacity refinement
+
+## New Features (3 components)
+
+### 1. Pitch Stability Meter (`src/components/pitch-stability.tsx`) — NEW
+- Compact horizontal bar showing pitch stability (std dev of last 30 same-note readings)
+- 3 zones: emerald (ثابت/stable), yellow (لرزان/wobbly), red (نامنظم/unstable)
+- Animated dot indicators, Persian labels
+- Dark mode, RTL, Framer Motion animations
+
+### 2. Settings Drawer (`src/components/settings-drawer.tsx`) — NEW
+- Slide-in Sheet from left (RTL-appropriate) with glass effect
+- A4 Frequency: large display with ±1 buttons, Persian numerals
+- Sound toggle: Switch component
+- Accuracy threshold: ±5/10/15/20 cents grid, persisted to localStorage
+- Theme toggle integration
+- Keyboard shortcuts reference (Space, S)
+- Reset all settings button
+- SettingsSection sub-component with icon + title + description pattern
+
+### 3. Practice Progress Ring (`src/components/practice-progress-ring.tsx`) — NEW
+- SVG circular ring showing notes completed in practice mode
+- Rose-to-amber gradient fill
+- Center: Persian numerals (current/total)
+- Streak fire icon + count
+- Confetti animation on 100% completion
+- Integrated into practice-mode.tsx CardContent
+
+## Verification
+- `bun run lint`: 0 errors, 0 warnings
+- All 3 new components verified: exist, imported, integrated
+- No JSX comment issues in new files (Turbopack-safe)
+
+## File Manifest (Phase 6)
+- src/lib/pitch-detection.ts — MODIFIED — a4Frequency config param, dynamic A4 in frequencyToMidi/frequencyToNote/getSolfeggNotes
+- src/hooks/useTuner.ts — MODIFIED — UseTunerOptions interface, a4Freq dep, optionsRef removed
+- src/app/page.tsx — MODIFIED — imports PitchStability/SettingsDrawer/Settings2, useA4Freq/useSoundEnabled, settingsOpen state, soundEnabled prop passing
+- src/app/globals.css — MODIFIED — glass, card-hover, fade-up, tuner-card-glow, shimmer, section-label
+- src/components/tuner-gauge.tsx — MODIFIED — CSS transition for arc opacity (replaced motion.g)
+- src/components/practice-mode.tsx — MODIFIED — soundEnabled prop, PracticeProgressRing integration
+- src/components/interval-trainer.tsx — MODIFIED — soundEnabled prop, reveal deps fix
+- src/components/settings-drawer.tsx — NEW — Settings drawer with A4, sound, accuracy, theme, shortcuts, reset
+- src/components/pitch-stability.tsx — NEW — Pitch stability meter
+- src/components/practice-progress-ring.tsx — NEW — Circular practice progress ring
+- (12 files total modified by styling subagent: page.tsx, globals.css, tuner-gauge.tsx, piano-keyboard.tsx, practice-mode.tsx, session-history.tsx, metronome.tsx, voice-range.tsx, performance-chart.tsx, waveform-visualizer.tsx, note-history.tsx, achievements.tsx)
+
+## Complete Feature List — 36 features total
+1-30: (same as Phase 5)
+31. Pitch stability meter (visual indicator)
+32. Settings drawer (A4, sound, accuracy, theme, shortcuts)
+33. Practice progress ring (circular SVG with confetti)
+34. A4 frequency wired to pitch detection engine
+35. Sound toggle wired to practice mode & interval trainer
+36. Accuracy threshold configurable (±5/10/15/20 cents)
+
+## Risks
+- Accuracy threshold setting exists in settings drawer but not yet consumed by pitch-detection.ts (still hardcoded to 10)
+- Dev server stability: agent-browser had connection issues during QA (likely environment-specific)
+- No PWA support yet
+
+## Next Phase Priorities
+1. Wire accuracy threshold from settings to pitch detection
+2. PWA support (manifest.json, service worker)
+3. Metronome + Tuner audio coexistence (separate AudioContext)
+4. Practice scoring persistence (save to Prisma)
+5. Week/month accuracy trend chart
+6. Mobile piano keyboard scroll/swipe

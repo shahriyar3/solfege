@@ -33,15 +33,15 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
       <div className="flex-1 min-h-0">
         {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8 gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-2xl bg-muted/30 flex items-center justify-center">
               <motion.div
                 animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <Music className="h-6 w-6 text-muted-foreground" />
+                <Music className="h-6 w-6 text-muted-foreground/40" />
               </motion.div>
             </div>
-            <p className="text-sm">هنوز نت‌ای ثبت نشده</p>
+            <p className="text-sm font-medium">هنوز نت‌ای ثبت نشده</p>
             <p className="text-xs opacity-50 text-center">روی میکروفون بزنید و شروع به سلفژ کنید</p>
           </div>
         ) : (

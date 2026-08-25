@@ -139,9 +139,14 @@ export function TunerGauge({
     <div dir="ltr" className="flex flex-col items-center gap-2 w-full select-none">
       {/* ── Volume Bar ──────────────────────────────────────────── */}
       <div className="w-full max-w-sm px-2">
-        <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden shadow-inner">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-rose-500/80 via-amber-400/80 to-yellow-300/80"
+            className={cn(
+              'h-full rounded-full',
+              volume < 0.05
+                ? 'bg-muted-foreground/20'
+                : 'bg-gradient-to-r from-rose-500/80 via-amber-400/80 to-yellow-300/80'
+            )}
             style={{ width: `${Math.min(volume * 400, 100)}%` }}
             transition={{ duration: 0.05 }}
           />
@@ -179,7 +184,7 @@ export function TunerGauge({
           />
 
           {/* ── Coloured arc segments (strokeDasharray technique) ── */}
-          <motion.g initial={{ opacity: 0.2 }} animate={{ opacity: isActive ? 0.88 : 0.2 }} transition={{ duration: 0.4 }}>
+          <g style={{ opacity: isActive ? 0.88 : 0.2, transition: 'opacity 0.4s' }}>
             {ARC_SEGS.map((s, i) => (
               <path
                 key={i}
@@ -191,7 +196,7 @@ export function TunerGauge({
                 strokeDasharray={s.dash}
               />
             ))}
-          </motion.g>
+          </g>
 
           {/* ── Subtle centre reference line ── */}
           <line
@@ -321,7 +326,7 @@ export function TunerGauge({
           <>
             <AnimatePresence mode="wait">
               <motion.div
-                className={cn('text-xl sm:text-2xl font-bold', feedbackCls)}
+                className={cn('text-xl sm:text-2xl font-bold tracking-tight', feedbackCls)}
                 key={accuracyText}
                 initial={{ y: 6, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -331,13 +336,16 @@ export function TunerGauge({
                 {accuracyText}
               </motion.div>
             </AnimatePresence>
-            <div className={cn('text-xs font-mono', feedbackCls)}>{centsLabel}</div>
+            <div className={cn('text-xs font-mono tabular-nums', feedbackCls)}>{centsLabel}</div>
             <div className={cn('text-[11px] font-mono tracking-wider', feedbackCls)}>
               {directionText}
             </div>
           </>
         ) : (
-          <div className="text-muted-foreground/50 text-sm mt-4">آماده ضبط</div>
+          <div className="text-muted-foreground/40 text-sm mt-4 flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+            آماده ضبط
+          </div>
         )}
       </div>
     </div>

@@ -1,0 +1,625 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+     4→import { Button } from '@/components/ui/button';
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { cn } from '@/lib/utils';
+     8→import { getNaturalNotes, playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+     9→import type { NoteInfo } from '@/lib/audio-playback';
+    10→import type { PitchResult } from '@/lib/pitch-detection';
+    11→import { motion, AnimatePresence } from 'framer-motion';
+    12→import {
+    13→  Play,
+    14→  RotateCcw,
+    15→  Trophy,
+    16→  Eye,
+    17→  ChevronLeft,
+    18→  ArrowUpRight,
+    19→  Volume2,
+    20→  SkipForward,
+    21→  Music,
+    22→} from 'lucide-react';
+    23→
+    24→// ---------------------------------------------------------------------------
+    25→// Constants & helpers
+    26→// ---------------------------------------------------------------------------
+    27→
+    28→const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    29→const SOLFEGE: Record<string, string> = {
+    30→  C: 'دو', 'C#': 'دو#', D: 'رِ', 'D#': 'رِ#',
+    31→  E: 'می', F: 'فا', 'F#': 'فا#',
+    32→  G: 'سل', 'G#': 'سل#', A: 'لا', 'A#': 'لا#', B: 'سی',
+    33→};
+    34→
+    35→const A4_FREQ = 440.0;
+    36→const A4_MIDI = 69;
+    37→
+    38→function midiToFreq(midi: number): number {
+    39→  return A4_FREQ * Math.pow(2, (midi - A4_MIDI) / 12);
+    40→}
+    41→
+    42→function midiToNoteInfo(midi: number): NoteInfo {
+    43→  const idx = ((midi % 12) + 12) % 12;
+    44→  const oct = Math.floor(midi / 12) - 1;
+    45→  const name = NOTE_NAMES[idx];
+    46→  return { note: name, solfege: SOLFEGE[name] ?? name, octave: oct, frequency: Math.round(midiToFreq(midi) * 100) / 100 };
+    47→}
+    48→
+    49→// ---------------------------------------------------------------------------
+    50→// Interval data
+    51→// ---------------------------------------------------------------------------
+    52→
+    53→interface IntervalDef {
+    54→  semitones: number;
+    55→  short: string;
+    56→  persian: string;
+    57→}
+    58→
+    59→interface IntervalCat {
+    60→  id: string;
+    61→  persian: string;
+    62→  english: string;
+    63→  intervals: IntervalDef[];
+    64→  color: string;
+    65→  bg: string;
+    66→  border: string;
+    67→}
+    68→
+    69→const CATEGORIES: IntervalCat[] = [
+    70→  {
+    71→    id: 'seconds', persian: 'سکوند', english: 'Seconds',
+    72→    color: 'from-rose-400 to-pink-500',
+    73→    bg: 'bg-rose-50 dark:bg-rose-950/30', border: 'border-rose-200 dark:border-rose-800/40',
+    74→    intervals: [
+    75→      { semitones: 1, short: 'm2', persian: 'سکوند کوچک' },
+    76→      { semitones: 2, short: 'M2', persian: 'سکوند بزرگ' },
+    77→    ],
+    78→  },
+    79→  {
+    80→    id: 'tierce', persian: 'تیرس', english: 'Tierce',
+    81→    color: 'from-orange-400 to-amber-500',
+    82→    bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-orange-200 dark:border-orange-800/40',
+    83→    intervals: [
+    84→      { semitones: 3, short: 'm3', persian: 'تیرس کوچک' },
+    85→      { semitones: 4, short: 'M3', persian: 'تیرس بزرگ' },
+    86→    ],
+    87→  },
+    88→  {
+    89→    id: 'quarte', persian: 'کوارت', english: 'Quarte',
+    90→    color: 'from-emerald-400 to-green-500',
+    91→    bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-emerald-200 dark:border-emerald-800/40',
+    92→    intervals: [{ semitones: 5, short: 'P4', persian: 'کوارت خالص' }],
+    93→  },
+    94→  {
+    95→    id: 'quinte', persian: 'کوینت', english: 'Quinte',
+    96→    color: 'from-cyan-400 to-blue-500',
+    97→    bg: 'bg-cyan-50 dark:bg-cyan-950/30', border: 'border-cyan-200 dark:border-cyan-800/40',
+    98→    intervals: [
+    99→      { semitones: 6, short: 'TT', persian: 'تری‌تون' },
+   100→      { semitones: 7, short: 'P5', persian: 'کوینت خالص' },
+   101→    ],
+   102→  },
+   103→  {
+   104→    id: 'sext', persian: 'سکست', english: 'Sexte',
+   105→    color: 'from-violet-400 to-purple-500',
+   106→    bg: 'bg-violet-50 dark:bg-violet-950/30', border: 'border-violet-200 dark:border-violet-800/40',
+   107→    intervals: [
+   108→      { semitones: 8, short: 'm6', persian: 'سکست کوچک' },
+   109→      { semitones: 9, short: 'M6', persian: 'سکست بزرگ' },
+   110→    ],
+   111→  },
+   112→  {
+   113→    id: 'sept', persian: 'سپتیم', english: 'Septime',
+   114→    color: 'from-fuchsia-400 to-pink-500',
+   115→    bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/30', border: 'border-fuchsia-200 dark:border-fuchsia-800/40',
+   116→    intervals: [
+   117→      { semitones: 10, short: 'm7', persian: 'سپتیم کوچک' },
+   118→      { semitones: 11, short: 'M7', persian: 'سپتیم بزرگ' },
+   119→    ],
+   120→  },
+   121→  {
+   122→    id: 'octave', persian: 'اکتاو', english: 'Octave',
+   123→    color: 'from-sky-400 to-indigo-500',
+   124→    bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/40',
+   125→    intervals: [{ semitones: 12, short: 'P8', persian: 'اکتاو' }],
+   126→  },
+   127→];
+   128→
+   129→const ALL_INTERVALS: IntervalDef[] = CATEGORIES.flatMap((c) => c.intervals);
+   130→
+   131→const ROOT_MIDI: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+   132→
+   133→function rootMidi(name: string, oct: number) {
+   134→  return (oct + 1) * 12 + ROOT_MIDI[name];
+   135→}
+   136→
+   137→// ---------------------------------------------------------------------------
+   138→// Component
+   139→// ---------------------------------------------------------------------------
+   140→
+   141→type Phase = 'setup' | 'playing' | 'result';
+   142→
+   143→interface IntervalTrainerProps {
+   144→  currentPitch: PitchResult | null;
+   145→  isActive: boolean;
+   146→  soundEnabled?: boolean;
+   147→}
+   148→
+   149→export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }: IntervalTrainerProps) {
+   150→  const [expanded, setExpanded] = useState(false);
+   151→  const [phase, setPhase] = useState<Phase>('setup');
+   152→
+   153→  // Setup
+   154→  const [rootOct, setRootOct] = useState(4);
+   155→  const [rootName, setRootName] = useState('C');
+   156→  const [catId, setCatId] = useState<string | null>(null);
+   157→  const [intIdx, setIntIdx] = useState(0);
+   158→
+   159→  // Play
+   160→  const [curInterval, setCurInterval] = useState<IntervalDef | null>(null);
+   161→  const [curCat, setCurCat] = useState<IntervalCat | null>(null);
+   162→  const [revealed, setRevealed] = useState(false);
+   163→  const [playingRoot, setPlayingRoot] = useState(false);
+   164→  const [playingTarget, setPlayingTarget] = useState(false);
+   165→  const [result, setResult] = useState<'correct' | 'wrong' | null>(null);
+   166→  const [resultCents, setResultCents] = useState<number | null>(null);
+   167→
+   168→  // Score
+   169→  const [score, setScore] = useState(0);
+   170→  const [attempts, setAttempts] = useState(0);
+   171→  const [streak, setStreak] = useState(0);
+   172→  const [best, setBest] = useState(0);
+   173→
+   174→  const detected = useRef(false);
+   175→  const phaseRef = useRef<Phase>('setup');
+   176→  useEffect(() => { phaseRef.current = phase; }, [phase]);
+   177→
+   178→  const notes = useMemo(() => getNaturalNotes(rootOct), [rootOct]);
+   179→  const root = notes.find((n) => n.note === rootName) ?? notes[0];
+   180→  const rMidi = rootMidi(root.note, root.octave);
+   181→
+   182→  const tMidi = useMemo(() => (curInterval ? rMidi + curInterval.semitones : null), [rMidi, curInterval]);
+   183→  const target = useMemo(() => (tMidi !== null ? midiToNoteInfo(tMidi) : null), [tMidi]);
+   184→
+   185→  const avail = useMemo(() => {
+   186→    if (!catId) return ALL_INTERVALS;
+   187→    const c = CATEGORIES.find((x) => x.id === catId);
+   188→    return c ? c.intervals : ALL_INTERVALS;
+   189→  }, [catId]);
+   190→
+   191→  const selInterval = avail[intIdx] ?? avail[0];
+   192→
+   193→  // Pitch detection
+   194→  useEffect(() => {
+   195→    if (!isActive || !currentPitch || phaseRef.current !== 'playing' || detected.current || tMidi === null) return;
+   196→    const tName = NOTE_NAMES[((tMidi % 12) + 12) % 12];
+   197→    const tOct = Math.floor(tMidi / 12) - 1;
+   198→    if (currentPitch.note === tName && currentPitch.octave === tOct && Math.abs(currentPitch.cents) <= 20) {
+   199→      detected.current = true;
+   200→      queueMicrotask(() => {
+   201→        if (soundEnabled) playCorrectSound();
+   202→        setResult('correct');
+   203→        setResultCents(currentPitch.cents);
+   204→        setScore((s) => s + 1);
+   205→        setAttempts((a) => a + 1);
+   206→        setStreak((s) => { const n = s + 1; setBest((b) => Math.max(b, n)); return n; });
+   207→        setRevealed(true);
+   208→        setPhase('result');
+   209→      });
+   210→    }
+   211→  }, [currentPitch, isActive, tMidi]);
+   212→
+   213→  const playRootNote = useCallback((freq: number) => {
+   214→    const { stop } = playNote(freq, 1.2);
+   215→    setPlayingRoot(true);
+   216→    setTimeout(() => { setPlayingRoot(false); stop(); }, 1300);
+   217→  }, []);
+   218→
+   219→  const begin = useCallback(() => {
+   220→    let interval: IntervalDef;
+   221→    let category: IntervalCat | null = null;
+   222→    if (catId) {
+   223→      category = CATEGORIES.find((c) => c.id === catId) ?? null;
+   224→      interval = avail[intIdx] ?? avail[0];
+   225→    } else {
+   226→      interval = ALL_INTERVALS[Math.floor(Math.random() * ALL_INTERVALS.length)];
+   227→      category = CATEGORIES.find((c) => c.intervals.some((i) => i.semitones === interval.semitones)) ?? null;
+   228→    }
+   229→    setCurInterval(interval);
+   230→    setCurCat(category);
+   231→    setRevealed(false);
+   232→    setResult(null);
+   233→    setResultCents(null);
+   234→    detected.current = false;
+   235→    setPhase('playing');
+   236→    setTimeout(() => playRootNote(root.frequency), 300);
+   237→  }, [catId, avail, intIdx, root.frequency, playRootNote]);
+   238→
+   239→  const reveal = useCallback(() => {
+   240→    if (soundEnabled) playWrongSound();
+   241→    setRevealed(true);
+   242→    setResult('wrong');
+   243→    setAttempts((a) => a + 1);
+   244→    setStreak(0);
+   245→    setPhase('result');
+   246→  }, []);
+   247→
+   248→  const next = useCallback(() => {
+   249→    let interval: IntervalDef;
+   250→    let category: IntervalCat | null = null;
+   251→    if (catId) {
+   252→      const nextIdx = (intIdx + 1) % avail.length;
+   253→      setIntIdx(nextIdx);
+   254→      category = CATEGORIES.find((c) => c.id === catId) ?? null;
+   255→      interval = avail[nextIdx];
+   256→    } else {
+   257→      interval = ALL_INTERVALS[Math.floor(Math.random() * ALL_INTERVALS.length)];
+   258→      category = CATEGORIES.find((c) => c.intervals.some((i) => i.semitones === interval.semitones)) ?? null;
+   259→    }
+   260→    setCurInterval(interval);
+   261→    setCurCat(category);
+   262→    setRevealed(false);
+   263→    setResult(null);
+   264→    setResultCents(null);
+   265→    detected.current = false;
+   266→    setPhase('playing');
+   267→    setTimeout(() => playRootNote(root.frequency), 300);
+   268→  }, [catId, intIdx, avail, root.frequency, playRootNote]);
+   269→
+   270→  const reset = useCallback(() => {
+   271→    setPhase('setup');
+   272→    setCurInterval(null);
+   273→    setCurCat(null);
+   274→    setRevealed(false);
+   275→    setResult(null);
+   276→    setResultCents(null);
+   277→    detected.current = false;
+   278→    setScore(0);
+   279→    setAttempts(0);
+   280→    setStreak(0);
+   281→    setBest(0);
+   282→  }, []);
+   283→
+   284→  const playTargetNote = useCallback(() => {
+   285→    if (!target) return;
+   286→    const { stop } = playNote(target.frequency, 1.2);
+   287→    setPlayingTarget(true);
+   288→    setTimeout(() => { setPlayingTarget(false); stop(); }, 1300);
+   289→  }, [target]);
+   290→
+   291→  // ------------------------------------------------------------------
+   292→  // Teaser
+   293→  // ------------------------------------------------------------------
+   294→  if (!expanded) {
+   295→    return (
+   296→      <Card
+   297→        className="border-dashed border-2 border-border/40 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-violet-300/50 transition-all duration-300 group cursor-pointer"
+   298→        onClick={() => setExpanded(true)}
+   299→      >
+   300→        <CardContent className="p-5 flex items-center gap-4">
+   301→          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
+   302→            <Music className="h-6 w-6 text-white" />
+   303→          </div>
+   304→          <div className="flex-1">
+   305→            <h3 className="text-sm font-bold">تمرین فاصله</h3>
+   306→            <p className="text-xs text-muted-foreground mt-0.5">فاصله‌ها را بشنوید و بخوانید</p>
+   307→          </div>
+   308→          <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-violet-500 transition-colors" />
+   309→        </CardContent>
+   310→      </Card>
+   311→    );
+   312→  }
+   313→
+   314→  // ------------------------------------------------------------------
+   315→  // Expanded card
+   316→  // ------------------------------------------------------------------
+   317→  return (
+   318→    <Card className="border border-border/50 shadow-lg shadow-black/5 overflow-hidden">
+   319→      <CardHeader className="pb-2 pt-4 px-4">
+   320→        <div className="flex items-center justify-between">
+   321→          <CardTitle className="text-sm font-bold flex items-center gap-2">
+   322→            <Music className="h-4 w-4 text-violet-500" />
+   323→            {'\u062a\u0645\u0631\u06cc\u0646 \u0641\u0627\u0635\u0644\u0647'}
+   324→          </CardTitle>
+   325→          <Button
+   326→            variant="ghost"
+   327→            size="sm"
+   328→            onClick={() => { setExpanded(false); reset(); }}
+   329→            className="h-7 text-xs text-muted-foreground"
+   330→          >
+   331→            {'\u0628\u0633\u062a\u0646'}
+   332→          </Button>
+   333→        </div>
+   334→      </CardHeader>
+   335→
+   336→      <CardContent className="px-4 pb-4 space-y-4">
+   337→        {phase === 'setup' && (
+   338→          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+   339→            {/* Root note */}
+   340→            <div>
+   341→              <div className="text-xs font-medium text-muted-foreground mb-2">
+   342→                {'\u0646\u062a \u067e\u0627\u06cc\u0647'}
+   343→              </div>
+   344→              <div className="flex flex-wrap gap-1.5">
+   345→                {notes.map((n) => (
+   346→                  <button
+   347→                    key={`${n.note}${n.octave}`}
+   348→                    onClick={() => setRootName(n.note)}
+   349→                    className={cn(
+   350→                      'h-8 px-3 rounded-lg text-xs font-medium transition-all border',
+   351→                      rootName === n.note
+   352→                        ? 'bg-primary text-primary-foreground shadow-sm border-primary'
+   353→                        : 'bg-muted/50 text-muted-foreground hover:bg-muted border-transparent',
+   354→                    )}
+   355→                  >
+   356→                    {n.solfege}
+   357→                  </button>
+   358→                ))}
+   359→              </div>
+   360→              <div className="flex items-center justify-center gap-1.5 mt-2">
+   361→                <span className="text-xs text-muted-foreground">
+   362→                  {'\u0627\u06a9\u062a\u0627\u0648:'}
+   363→                </span>
+   364→                {[3, 4, 5].map((o) => (
+   365→                  <button
+   366→                    key={o}
+   367→                    onClick={() => setRootOct(o)}
+   368→                    className={cn(
+   369→                      'h-7 w-9 rounded-md text-xs font-medium transition-all',
+   370→                      rootOct === o
+   371→                        ? 'bg-primary text-primary-foreground shadow-sm'
+   372→                        : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+   373→                    )}
+   374→                  >
+   375→                    {o}
+   376→                  </button>
+   377→                ))}
+   378→              </div>
+   379→            </div>
+   380→
+   381→            {/* Category */}
+   382→            <div>
+   383→              <div className="text-xs font-medium text-muted-foreground mb-2">
+   384→                {'\u0646\u0648\u0639 \u0641\u0627\u0635\u0644\u0647'}
+   385→              </div>
+   386→              <div className="flex flex-wrap gap-1.5">
+   387→                <button
+   388→                  onClick={() => setCatId(null)}
+   389→                  className={cn(
+   390→                    'h-8 px-3 rounded-lg text-xs font-medium transition-all border',
+   391→                    catId === null
+   392→                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400 border-violet-200 dark:border-violet-800/40'
+   393→                      : 'bg-muted/50 text-muted-foreground hover:bg-muted border-transparent',
+   394→                  )}
+   395→                >
+   396→                  <span className="flex items-center gap-1">
+   397→                    <RotateCcw className="h-3 w-3" />
+   398→                    {'\u062a\u0635\u0627\u062f\u0641\u06cc'}
+   399→                  </span>
+   400→                </button>
+   401→                {CATEGORIES.map((c) => (
+   402→                  <button
+   403→                    key={c.id}
+   404→                    onClick={() => { setCatId(c.id); setIntIdx(0); }}
+   405→                    className={cn(
+   406→                      'h-8 px-3 rounded-lg text-xs font-medium transition-all border',
+   407→                      catId === c.id
+   408→                        ? cn(c.bg, c.border, 'text-foreground')
+   409→                        : 'bg-muted/50 text-muted-foreground hover:bg-muted border-transparent',
+   410→                    )}
+   411→                  >
+   412→                    {c.persian}
+   413→                    <span className="text-[10px] opacity-50 mr-1">{c.english}</span>
+   414→                  </button>
+   415→                ))}
+   416→              </div>
+   417→            </div>
+   418→
+   419→            {/* Sub-interval picker */}
+   420→            {catId && (
+   421→              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+   422→                <div className="text-xs font-medium text-muted-foreground mb-2">
+   423→                  {'\u0641\u0627\u0635\u0644\u0647 \u062f\u0642\u06cc\u0642'}
+   424→                </div>
+   425→                <div className="flex flex-wrap gap-1.5">
+   426→                  {avail.map((iv, i) => (
+   427→                    <button
+   428→                      key={iv.semitones}
+   429→                      onClick={() => setIntIdx(i)}
+   430→                      className={cn(
+   431→                        'h-8 px-3 rounded-lg text-xs font-medium transition-all border',
+   432→                        intIdx === i
+   433→                          ? 'bg-primary text-primary-foreground shadow-sm border-primary'
+   434→                          : 'bg-muted/50 text-muted-foreground hover:bg-muted border-transparent',
+   435→                      )}
+   436→                    >
+   437→                      {iv.persian}
+   438→                      <span className="text-[10px] opacity-50 mr-1">{iv.short}</span>
+   439→                    </button>
+   440→                  ))}
+   441→                </div>
+   442→              </motion.div>
+   443→            )}
+   444→
+   445→            {/* Preview & start */}
+   446→            <div className="flex flex-col items-center pt-2">
+   447→              <div className="text-lg font-bold text-muted-foreground">
+   448→                {root.solfege}{' '}
+   449→                <ArrowUpRight className="inline h-4 w-4" />{' '}
+   450→                {catId ? selInterval.persian : '\u0641\u0627\u0635\u0644\u0647 \u062a\u0635\u0627\u062f\u0641\u06cc'}
+   451→              </div>
+   452→              <Button
+   453→                onClick={begin}
+   454→                className="mt-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+   455→              >
+   456→                <Play className="h-4 w-4 ml-1.5" />
+   457→                {'\u0634\u0631\u0648\u0639 \u062a\u0645\u0631\u06cc\u0646'}
+   458→              </Button>
+   459→            </div>
+   460→          </motion.div>
+   461→        )}
+   462→
+   463→        {(phase === 'playing' || phase === 'result') && curInterval && (
+   464→          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+   465→            {/* Header: root -> interval */}
+   466→            <div className="flex flex-col items-center py-2">
+   467→              <div className="flex items-center gap-3 mb-2">
+   468→                <div className="text-3xl font-black bg-gradient-to-br from-violet-400 to-indigo-500 bg-clip-text text-transparent">
+   469→                  {root.solfege}
+   470→                </div>
+   471→                <ArrowUpRight className="h-5 w-5 text-muted-foreground" />
+   472→                <div className={cn('text-3xl font-black bg-gradient-to-br bg-clip-text text-transparent', curCat?.color ?? 'from-gray-400 to-gray-500')}>
+   473→                  {curInterval.persian}
+   474→                </div>
+   475→              </div>
+   476→              <Badge variant="secondary" className="text-[10px]">
+   477→                {curCat?.persian} ({curCat?.english})
+   478→              </Badge>
+   479→              <div className="text-xs text-muted-foreground font-mono mt-2">
+   480→                {root.note}{root.octave} {'\u2014'} {root.frequency} Hz
+   481→              </div>
+   482→            </div>
+   483→
+   484→            {/* Target (hidden / revealed) */}
+   485→            <div className="flex flex-col items-center">
+   486→              {revealed && target ? (
+   487→                <AnimatePresence>
+   488→                  <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center">
+   489→                    <div className="text-xs text-muted-foreground mb-1">
+   490→                      {'\u0646\u062a \u0647\u062f\u0641:'}
+   491→                    </div>
+   492→                    <div className={cn('text-4xl font-black bg-gradient-to-br bg-clip-text text-transparent', curCat?.color ?? 'from-gray-400 to-gray-500')}>
+   493→                      {target.solfege}
+   494→                    </div>
+   495→                    <div className="text-xs text-muted-foreground font-mono mt-1">
+   496→                      {target.note}{target.octave} {'\u2014'} {target.frequency} Hz
+   497→                    </div>
+   498→                  </motion.div>
+   499→                </AnimatePresence>
+   500→              ) : (
+   501→                <div className="flex flex-col items-center">
+   502→                  <div className="text-xs text-muted-foreground mb-1">
+   503→                    {'\u0646\u062a \u0647\u062f\u0641:'}
+   504→                  </div>
+   505→                  <div className="h-12 w-28 rounded-xl bg-muted/50 border border-dashed border-border/50 flex items-center justify-center">
+   506→                    <span className="text-xs text-muted-foreground/60">؟</span>
+   507→                  </div>
+   508→                  <div className="text-[10px] text-muted-foreground/50 mt-1">
+   509→                    {'\u0628\u062e\u0648\u0627\u0646\u06cc\u062f \u062a\u0627 \u0646\u062a\u06cc\u062c\u0647 \u0645\u0634\u062e\u0635 \u0634\u0648\u062f'}
+   510→                  </div>
+   511→                </div>
+   512→              )}
+   513→            </div>
+   514→
+   515→            {/* Result pill */}
+   516→            <AnimatePresence>
+   517→              {result && (
+   518→                <motion.div
+   519→                  initial={{ scale: 0, y: 10 }}
+   520→                  animate={{ scale: 1, y: 0 }}
+   521→                  exit={{ scale: 0, y: -10 }}
+   522→                  className={cn(
+   523→                    'py-2 px-4 rounded-full text-sm font-bold text-center',
+   524→                    result === 'correct'
+   525→                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+   526→                      : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400',
+   527→                  )}
+   528→                >
+   529→                  {result === 'correct'
+   530→                    ? (resultCents !== null && Math.abs(resultCents) <= 5
+   531→                        ? '\u0639\u0627\u0644\u06cc! \u062f\u0642\u06cc\u0642 \u0628\u0648\u062d \u2022'
+   532→                        : '\u0622\u0641\u0631\u06cc\u0646! \u062f\u0631\u0633\u062a \u0628\u0648\u062f \u2713')
+   533→                    : '\u0641\u0627\u0644\u0634 \u0628\u0648\u062f \u2717 \u0646\u062a \u0647\u062f\u0641 \u0631\u0627 \u0628\u0628\u06cc\u0646\u06cc\u062f'}
+   534→                </motion.div>
+   535→              )}
+   536→            </AnimatePresence>
+   537→
+   538→            {/* Controls */}
+   539→            <div className="flex items-center justify-center gap-2 flex-wrap">
+   540→              <Button
+   541→                variant="outline"
+   542→                size="sm"
+   543→                onClick={() => playRootNote(root.frequency)}
+   544→                className={cn('h-9 gap-1.5', playingRoot && 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40')}
+   545→              >
+   546→                <Volume2 className={cn('h-4 w-4', playingRoot && 'text-amber-600')} />
+   547→                <span className="text-xs">
+   548→                  {'\u067e\u0627\u06cc\u0647'}
+   549→                </span>
+   550→              </Button>
+   551→
+   552→              {revealed && target && (
+   553→                <Button
+   554→                  variant="outline"
+   555→                  size="sm"
+   556→                  onClick={playTargetNote}
+   557→                  className={cn('h-9 gap-1.5', playingTarget && 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/40')}
+   558→                >
+   559→                  <Volume2 className={cn('h-4 w-4', playingTarget && 'text-emerald-600')} />
+   560→                  <span className="text-xs">
+   561→                    {'\u0647\u062f\u0641'}
+   562→                  </span>
+   563→                </Button>
+   564→              )}
+   565→
+   566→              {phase === 'playing' && !revealed && (
+   567→                <Button variant="outline" size="sm" onClick={reveal} className="h-9 gap-1.5 text-orange-600">
+   568→                  <Eye className="h-4 w-4" />
+   569→                  <span className="text-xs">
+   570→                    {'\u0646\u0634\u0627\u0646 \u062f\u0627\u062f\u0646'}
+   571→                  </span>
+   572→                </Button>
+   573→              )}
+   574→
+   575→              {phase === 'result' && (
+   576→                <Button
+   577→                  variant="default"
+   578→                  size="sm"
+   579→                  onClick={next}
+   580→                  className="h-9 gap-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+   581→                >
+   582→                  <SkipForward className="h-4 w-4" />
+   583→                  <span className="text-xs">
+   584→                    {'\u0628\u0639\u062f\u06cc'}
+   585→                  </span>
+   586→                </Button>
+   587→              )}
+   588→            </div>
+   589→
+   590→            {/* Score */}
+   591→            <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-xl p-3">
+   592→              <div className="text-center">
+   593→                <div className="flex items-center justify-center gap-1">
+   594→                  <Trophy className="h-3.5 w-3.5 text-amber-500" />
+   595→                  <span className="text-lg font-bold tabular-nums">{score}</span>
+   596→                </div>
+   597→                <div className="text-[10px] text-muted-foreground">
+   598→                  {'\u0627\u0645\u062a\u06cc\u0627\u0632'}
+   599→                </div>
+   600→              </div>
+   601→              <div className="text-center">
+   602→                <div className="text-lg font-bold tabular-nums">{streak}</div>
+   603→                <div className="text-[10px] text-muted-foreground">
+   604→                  {'\u067e\u0627\u0633 \u0645\u062a\u0648\u0627\u0644\u06cc'}
+   605→                </div>
+   606→              </div>
+   607→              <div className="text-center">
+   608→                <div className="text-lg font-bold tabular-nums text-amber-500">{best}</div>
+   609→                <div className="text-[10px] text-muted-foreground">
+   610→                  {'\u0628\u0647\u062a\u0631\u06cc\u0646 \u067e\u0627\u0633'}
+   611→                </div>
+   612→              </div>
+   613→            </div>
+   614→
+   615→            <Button variant="ghost" size="sm" onClick={reset} className="w-full h-8 text-xs text-muted-foreground">
+   616→              <RotateCcw className="h-3.5 w-3.5 ml-1" />
+   617→              {'\u0628\u0627\u0632\u06af\u0634\u062a \u0628\u0647 \u062a\u0646\u0638\u06cc\u0645\u0627\u062a'}
+   618→            </Button>
+   619→          </motion.div>
+   620→        )}
+   621→      </CardContent>
+   622→    </Card>
+   623→  );
+   624→}
+   625→

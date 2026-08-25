@@ -20,7 +20,11 @@ interface TunerState {
   };
 }
 
-export function useTuner() {
+interface UseTunerOptions {
+  a4Frequency?: number;
+}
+
+export function useTuner(options?: UseTunerOptions) {
   const [state, setState] = useState<TunerState>({
     isActive: false,
     currentPitch: null,
@@ -75,6 +79,8 @@ export function useTuner() {
     setState((prev) => ({ ...prev, volume }));
   }, []);
 
+  const a4Freq = options?.a4Frequency ?? 440;
+
   const start = useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, error: null }));
@@ -83,6 +89,7 @@ export function useTuner() {
         minFrequency: 60,
         maxFrequency: 1500,
         accuracyThreshold: 10,
+        a4Frequency: a4Freq,
       });
 
       await detectorRef.current.start(handlePitch, handleVolume);
@@ -100,7 +107,7 @@ export function useTuner() {
         analyserNode: null,
       }));
     }
-  }, [handlePitch, handleVolume]);
+  }, [handlePitch, handleVolume, a4Freq]);
 
   const stop = useCallback(() => {
     if (detectorRef.current) {

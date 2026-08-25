@@ -143,9 +143,10 @@ type Phase = 'setup' | 'playing' | 'result';
 interface IntervalTrainerProps {
   currentPitch: PitchResult | null;
   isActive: boolean;
+  soundEnabled?: boolean;
 }
 
-export function IntervalTrainer({ currentPitch, isActive }: IntervalTrainerProps) {
+export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }: IntervalTrainerProps) {
   const [expanded, setExpanded] = useState(false);
   const [phase, setPhase] = useState<Phase>('setup');
 
@@ -197,7 +198,7 @@ export function IntervalTrainer({ currentPitch, isActive }: IntervalTrainerProps
     if (currentPitch.note === tName && currentPitch.octave === tOct && Math.abs(currentPitch.cents) <= 20) {
       detected.current = true;
       queueMicrotask(() => {
-        playCorrectSound();
+        if (soundEnabled) playCorrectSound();
         setResult('correct');
         setResultCents(currentPitch.cents);
         setScore((s) => s + 1);
@@ -236,13 +237,13 @@ export function IntervalTrainer({ currentPitch, isActive }: IntervalTrainerProps
   }, [catId, avail, intIdx, root.frequency, playRootNote]);
 
   const reveal = useCallback(() => {
-    playWrongSound();
+    if (soundEnabled) playWrongSound();
     setRevealed(true);
     setResult('wrong');
     setAttempts((a) => a + 1);
     setStreak(0);
     setPhase('result');
-  }, []);
+  }, [soundEnabled]);
 
   const next = useCallback(() => {
     let interval: IntervalDef;

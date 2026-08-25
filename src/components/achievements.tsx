@@ -212,7 +212,7 @@ export function Achievements({
   const catColors = CATEGORY_COLORS;
 
   return (
-    <div className="rounded-xl border border-border bg-card text-card-foreground overflow-hidden">
+    <div className="rounded-xl border border-border/40 bg-card text-card-foreground overflow-hidden shadow-sm shadow-black/[0.02]">
       {/* ── Compact header ──────────────────────────────────────────────── */}
       <button
         type="button"

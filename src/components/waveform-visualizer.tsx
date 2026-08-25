@@ -222,7 +222,7 @@ export function WaveformVisualizer({ isActive, analyserNode, className }: Wavefo
   }, []);
 
   return (
-    <div className={cn('rounded-xl overflow-hidden bg-muted/20', className)}>
+    <div className={cn('rounded-xl overflow-hidden bg-gradient-to-b from-muted/20 to-muted/10 border border-border/15', className)}>
       <canvas
         ref={canvasRef}
         className="w-full h-24 sm:h-28 block"

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Shuffle,
 } from 'lucide-react';
+import { PracticeProgressRing } from '@/components/practice-progress-ring';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -72,13 +73,14 @@ const NOTE_COLORS: Record<string, string> = {
 interface PracticeModeProps {
   currentPitch: PitchResult | null;
   isActive: boolean;
+  soundEnabled?: boolean;
   onTargetChange?: (note: string | null) => void;
   onStreakChange?: (bestStreak: number) => void;
 }
 
 type ScaleType = 'natural' | 'chromatic';
 
-export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakChange }: PracticeModeProps) {
+export function PracticeMode({ currentPitch, isActive, soundEnabled = true, onTargetChange, onStreakChange }: PracticeModeProps) {
   const [isPracticeMode, setIsPracticeMode] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [scaleType, setScaleType] = useState<ScaleType>('natural');
@@ -117,7 +119,7 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
     if (matchesNote && withinThreshold) {
       detectedRef.current = true;
       queueMicrotask(() => {
-        playCorrectSound();
+        if (soundEnabled) playCorrectSound();
         setNoteResult('correct');
         setScore((s) => s + 1);
         setAttemptCount((a) => a + 1);
@@ -158,7 +160,7 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
   }, [targetNote.frequency]);
 
   const handleNext = useCallback(() => {
-    playWrongSound();
+    if (soundEnabled) playWrongSound();
     detectedRef.current = false;
     setNoteResult(null);
     setAttemptCount((a) => a + 1);
@@ -171,7 +173,7 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
       }
       return (i + 1) % scale.length;
     });
-  }, [scale.length, shuffleMode]);
+  }, [scale.length, shuffleMode, soundEnabled]);
 
   const handlePrev = useCallback(() => {
     detectedRef.current = false;
@@ -192,11 +194,11 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
 
   if (!isPracticeMode) {
     return (
-      <Card className="border-dashed border-2 border-border/40 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-rose-300/50 transition-all duration-300 group cursor-pointer"
+      <Card className="border-dashed border-2 border-border/30 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-rose-300/40 transition-all duration-300 group cursor-pointer card-hover"
         onClick={() => setIsPracticeMode(true)}
       >
         <CardContent className="p-5 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:shadow-rose-500/40 transition-shadow">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:shadow-rose-500/35 transition-all duration-300 group-hover:scale-105">
             <Target className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
@@ -207,14 +209,14 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
               <Badge variant="outline" className="text-[9px] h-4 text-amber-600 border-amber-300/50">کروماتیک</Badge>
             </div>
           </div>
-          <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-rose-500 transition-colors" />
+          <ChevronLeft className="h-5 w-5 text-muted-foreground/50 group-hover:text-rose-500 transition-colors" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border border-border/50 shadow-lg shadow-black/5 overflow-hidden">
+    <Card className="border border-border/40 shadow-lg shadow-black/[0.04] overflow-hidden">
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -242,6 +244,16 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-4">
+        {/* Progress ring */}
+        <div className="flex justify-center py-2">
+          <PracticeProgressRing
+            current={score}
+            total={scale.length}
+            score={score}
+            streak={streak}
+          />
+        </div>
+
         {/* Scale type toggle */}
         <div className="flex gap-2 bg-muted/20 rounded-lg p-1">
           <button
@@ -381,7 +393,7 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
         </div>
 
         {/* Score */}
-        <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-xl p-3">
+        <div className="grid grid-cols-3 gap-2 bg-gradient-to-b from-muted/30 to-muted/15 rounded-xl p-3 border border-border/10">
           <div className="text-center">
             <div className="flex items-center justify-center gap-1">
               <Trophy className="h-3.5 w-3.5 text-amber-500" />

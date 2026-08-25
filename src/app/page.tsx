@@ -18,7 +18,9 @@ import { PerformanceChart } from '@/components/performance-chart';
 import { Metronome } from '@/components/metronome';
 import { PianoKeyboard } from '@/components/piano-keyboard';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { TunerControls } from '@/components/tuner-controls';
+import { PitchStability } from '@/components/pitch-stability';
+import { SettingsDrawer } from '@/components/settings-drawer';
+import { TunerControls, useA4Freq, useSoundEnabled } from '@/components/tuner-controls';
 import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
 import { cn } from '@/lib/utils';
@@ -41,6 +43,9 @@ function toPersianNum(n: number): string {
 }
 
 export default function Home() {
+  const [a4Freq] = useA4Freq();
+  const [soundEnabled] = useSoundEnabled();
+
   const {
     isActive,
     currentPitch,
@@ -52,7 +57,7 @@ export default function Home() {
     start,
     stop,
     resetHistory,
-  } = useTuner();
+  } = useTuner({ a4Frequency: a4Freq });
 
   const [showHistory, setShowHistory] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,6 +67,7 @@ export default function Home() {
   const [practiceBestStreak, setPracticeBestStreak] = useState(0);
   const [practiceSeconds, setPracticeSeconds] = useState(0);
   const practiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Practice seconds tracker
   useEffect(() => {
@@ -181,11 +187,11 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20" dir="rtl">
       {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border/40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 glass border-b border-border/30 shadow-sm shadow-black/[0.02] dark:shadow-none">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
-              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25"
+              className="h-10 w-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25 ring-1 ring-white/20 dark:ring-white/10"
               whileHover={{ scale: 1.05, rotate: -3 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -197,35 +203,44 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="تنظیمات"
+            >
+              <Settings2 className="h-4 w-4" />
+            </Button>
             <ThemeToggle />
             {isActive && noteHistory.length > 0 && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-8">
+              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-8 border-border/50">
                 <Save className="h-3.5 w-3.5" />
                 {saving ? 'در حال ذخیره...' : 'ذخیره'}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1.5 text-xs h-8">
+            <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1.5 text-xs h-8 border-border/50">
               <History className="h-3.5 w-3.5" />
-              تاریخچه
+              <span className="hidden sm:inline">تاریخچه</span>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
           {/* Left column: Tuner */}
-          <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5 animate-fade-up">
             {/* Main tuner card */}
             <Card className={cn(
-              'overflow-hidden border bg-card/90 backdrop-blur-sm card-hover transition-all duration-500',
+              'overflow-hidden border bg-card/95 backdrop-blur-sm card-hover transition-all duration-500 tuner-card-glow',
               isActive
-                ? 'border-rose-500/40 shadow-xl shadow-rose-500/10'
-                : 'border-border/40 shadow-xl shadow-black/[0.04]'
+                ? 'border-rose-500/30 shadow-2xl shadow-rose-500/[0.07] is-active'
+                : 'border-border/40 shadow-xl shadow-black/[0.03]'
             )}>
-              <CardContent className="p-5 sm:p-8">
+              <CardContent className="p-5 sm:p-7 lg:p-8">
                 {/* Top controls row: timer + tuner controls + keyboard hint */}
                 <div className="flex items-center justify-between mb-4">
                   <SessionTimer isActive={isActive} />
@@ -249,6 +264,11 @@ export default function Home() {
                   volume={volume}
                 />
 
+                {/* Pitch stability meter */}
+                <div className="my-3">
+                  <PitchStability isActive={isActive} noteHistory={noteHistory} />
+                </div>
+
                 {/* Waveform visualizer */}
                 <div className="my-5">
                   <WaveformVisualizer isActive={isActive} analyserNode={analyserNode} />
@@ -263,7 +283,7 @@ export default function Home() {
                   />
                 </div>
 
-                <div className="border-t border-border/30 my-5" />
+                <div className="border-t border-border/20 my-5" />
 
                 {/* Mic button and controls */}
                 <div className="flex flex-col items-center gap-4">
@@ -344,6 +364,7 @@ export default function Home() {
             <PracticeMode
               currentPitch={currentPitch}
               isActive={isActive}
+              soundEnabled={soundEnabled}
               onTargetChange={handleTargetChange}
               onStreakChange={handleStreakChange}
             />
@@ -352,11 +373,11 @@ export default function Home() {
             <ReferenceNotes currentNote={currentPitch?.note} />
 
             {/* Interval trainer */}
-            <IntervalTrainer currentPitch={currentPitch} isActive={isActive} />
+            <IntervalTrainer currentPitch={currentPitch} isActive={isActive} soundEnabled={soundEnabled} />
           </div>
 
           {/* Right column: Stats, Timer, Achievements, Metronome, History */}
-          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
+          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 animate-fade-up animation-delay-200">
             {/* Stats card */}
             <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover">
               <CardContent className="p-4">
@@ -365,13 +386,17 @@ export default function Home() {
                     <TrendingUp className="h-3.5 w-3.5 text-white" />
                   </div>
                   <h3 className="text-sm font-bold">آمار جلسه</h3>
+                  <div className="flex-1" />
+                  {stats.totalNotes > 0 && (
+                    <span className="text-[10px] text-muted-foreground/60 font-mono tabular-nums">{toPersianNum(stats.totalNotes)} نت</span>
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="bg-gradient-to-b from-muted/50 to-muted/20 rounded-xl p-3 text-center border border-border/20">
+                  <div className="bg-gradient-to-b from-muted/40 to-muted/10 rounded-xl p-3 text-center border border-border/15 shadow-sm shadow-black/[0.01]">
                     <div className="text-2xl font-bold tabular-nums">{toPersianNum(stats.totalNotes)}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">کل نت‌ها</div>
                   </div>
-                  <div className="bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 rounded-xl p-3 text-center border border-emerald-200/20 dark:border-emerald-800/20">
+                  <div className="bg-gradient-to-b from-emerald-50/50 to-emerald-100/10 dark:from-emerald-950/20 dark:to-emerald-950/5 rounded-xl p-3 text-center border border-emerald-200/20 dark:border-emerald-800/20 shadow-sm shadow-emerald-500/[0.03]">
                     <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{toPersianNum(stats.accurateNotes)}</div>
                     <div className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">نت‌های تمیز</div>
                   </div>
@@ -426,7 +451,7 @@ export default function Home() {
             <Metronome isTunerActive={isActive} />
 
             {/* Note history */}
-            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover">
+            <Card className="flex-1 border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm min-h-[300px] card-hover overflow-hidden">
               <CardContent className="p-4 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -449,16 +474,19 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-5">
           <PerformanceChart />
         </div>
 
-        <div className="mt-8 mb-4">
-          <Card className="border border-dashed border-border/30 bg-muted/5 card-hover">
+        <div className="mt-10 mb-2 animate-fade-up animation-delay-400">
+          <Card className="border border-dashed border-border/25 bg-muted/[0.03] card-hover">
             <CardContent className="p-4 sm:p-5">
-              <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
-                <span>💡</span> راهنمای استفاده
-              </h3>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="h-5 w-5 rounded-md bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shadow-amber-500/20">
+                  <span className="text-xs">💡</span>
+                </div>
+                <h3 className="text-sm font-bold">راهنمای استفاده</h3>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
@@ -470,8 +498,8 @@ export default function Home() {
                   { icon: '🎹', text: 'نت‌های مرجع با انتخاب اکتاو و پخش صدا' },
                   { icon: '🎛️', text: 'تنظیم فرکانس A4 (۴۲۰ تا ۴۶۰ هرتز) و خاموش/روشن صدا' },
                 ].map((tip, idx) => (
-                  <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
-                    <span className="text-base shrink-0">{tip.icon}</span>
+                  <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed py-1">
+                    <span className="text-base shrink-0 mt-px">{tip.icon}</span>
                     <p>{tip.text}</p>
                   </div>
                 ))}
@@ -482,12 +510,12 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-border/30 glass">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
+      <footer className="mt-auto border-t border-border/20 glass">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground/70">
           <span>سلفژ آنلاین — تنظیم صدا و ارزیابی دقت سلفژ</span>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline">تحلیل صدا به صورت ریل‌تایم</span>
-            <span className="text-muted-foreground/40">|</span>
+            <span className="text-muted-foreground/30">|</span>
             <span>نسخه ۳.۰</span>
           </div>
         </div>
@@ -495,6 +523,9 @@ export default function Home() {
 
       {/* Session history modal */}
       <SessionHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
+
+      {/* Settings drawer */}
+      <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

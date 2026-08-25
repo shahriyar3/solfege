@@ -109,11 +109,11 @@ export function PerformanceChart() {
   if (!expanded) {
     return (
       <Card
-        className="border-dashed border-2 border-border/40 bg-gradient-to-br from-violet-500/5 to-fuchsia-500/5 hover:border-violet-300/50 transition-all duration-300 group cursor-pointer"
+        className="border-dashed border-2 border-border/25 bg-gradient-to-br from-violet-500/5 to-fuchsia-500/5 hover:border-violet-300/40 transition-all duration-300 group cursor-pointer card-hover"
         onClick={() => setExpanded(true)}
       >
         <CardContent className="p-5 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/35 transition-all duration-300 group-hover:scale-105">
             <BarChart3 className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
@@ -138,7 +138,7 @@ export function PerformanceChart() {
   }
 
   return (
-    <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm">
+    <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm overflow-hidden">
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -160,10 +160,12 @@ export function PerformanceChart() {
       </CardHeader>
       <CardContent className="px-4 pb-4">
         {chartData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <BarChart3 className="h-10 w-10 opacity-20 mb-2" />
-            <p className="text-sm">هنوز داده‌ای ثبت نشده</p>
-            <p className="text-xs opacity-60">پس از تمرین اینجا نمودار عملکرد نمایش داده می‌شود</p>
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="h-14 w-14 rounded-2xl bg-muted/30 flex items-center justify-center mb-3">
+              <BarChart3 className="h-7 w-7 opacity-20" />
+            </div>
+            <p className="text-sm font-medium">هنوز داده‌ای ثبت نشده</p>
+            <p className="text-xs opacity-50 mt-1">پس از تمرین اینجا نمودار عملکرد نمایش داده می‌شود</p>
           </div>
         ) : (
           <>

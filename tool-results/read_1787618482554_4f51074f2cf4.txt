@@ -1,0 +1,522 @@
+    70→   119→   119→
+    71→   120→   120→## Complete Feature List
+    72→   121→   121→1. Real-time autocorrelation pitch detection (Web Audio API)
+    73→   122→   122→2. Visual tuner gauge with spring-physics needle
+    74→   123→   123→3. Waveform visualization (canvas)
+    75→   124→   124→4. Interactive piano keyboard (2 octaves)
+    76→   125→   125→5. Practice mode (natural + chromatic, 3 difficulty levels, scoring)
+    77→   126→   126→6. Interval trainer (seconds through octaves, scoring, streaks)
+    78→   127→   127→7. Voice range detector with classification (soprano/alto/tenor/bass)
+    79→   128→   128→8. Audio reference playback (click any note to hear it)
+    80→   129→   129→9. Audio feedback sounds (chime on correct, buzz on wrong)
+    81→   130→   130→10. Metronome (30-220 BPM, 4/4, presets)
+    82→   131→   131→11. Note history with color-coded accuracy
+    83→   132→   132→12. Session persistence (Prisma/SQLite)
+    84→   133→   133→13. Performance charts (recharts bar chart)
+    85→   134→   134→14. CSV export of practice data
+    86→   135→   135→15. Responsive design (mobile-first)
+    87→   136→   136→16. Dark mode support
+    88→   137→   137→17. RTL Persian layout
+    89→   138→   138→18. Framer Motion animations throughout
+    90→   139→   139→
+    91→   140→   140→## Unresolved Issues / Risks
+    92→   141→   141→1. **Microphone access**: Cannot be fully tested in sandbox — requires real browser with mic permission
+    93→   142→   142→2. **AudioContext restrictions**: Some browsers require user gesture; feedback sounds use singleton context to mitigate
+    94→   143→   143→3. **Metronome + Tuner conflict**: Metronome disabled during tuner to avoid audio conflicts
+    95→   144→   144→4. **Turbopack CSS**: `@layer` directive not supported by Turbopack CSS parser — workaround: use plain CSS
+    96→   145→   145→5. **Piano keyboard not wired to practice mode target**: Currently only shows current detected note; could be enhanced to show practice target
+    97→   146→   146→
+    98→   147→   147→## Priority Recommendations for Next Phase
+    99→   148→   148→1. **Wire piano keyboard to practice mode**: Show target note with violet highlight during practice
+   100→   149→   149→2. **Sheet music display**: Show simple musical notation for exercises
+   101→   150→   150→3. **Performance history trends**: Weekly/monthly accuracy line charts
+   102→   151→   151→4. **PWA support**: Make installable on mobile (manifest.json, service worker)
+   103→   152→   152→5. **Metronome + Tuner coexistence**: Use separate audio contexts to allow simultaneous use
+   104→   153→   153→6. **Export session as PDF**: Formatted practice report
+   105→   154→   154→7. **Customizable gauge colors/theme**: User preferences for color scheme
+   106→   155→   155→8. **Keyboard shortcuts**: Space to start/stop, arrow keys for practice navigation
+   107→   156→   156→
+   108→   157→   157→---
+   109→   158→   158→Task ID: 7-arc-gauge
+   110→   159→   159→Agent: Main Agent
+   111→   160→   160→Task: Rewrite tuner gauge as premium SVG circular arc gauge
+   112→   161→   161→
+   113→   162→   162→## Completed
+   114→   163→   163→
+   115→   164→   164→Rewrote `src/components/tuner-gauge.tsx` from a horizontal linear bar gauge to a **premium SVG-based semicircular arc gauge** (speedometer style).
+   116→   165→   165→
+   117→   166→   166→### Design
+   118→   167→   167→- **Semicircular arc** (180°, left=-50 cents flat, right=+50 cents sharp) with SVG `<path>` and `<circle>` elements
+   119→   168→   168→- **60 coloured arc segments** using `strokeDasharray` / `strokeDashoffset` technique on a shared semicircle path — each segment is 1.67 cents wide, producing a **smooth gradient** from dark-red (±50) → red (±25) → orange (±10) → yellow (±5) → emerald (0)
+   120→   169→   169→- **17 tick marks** at -50,-40,-30,-25,-20,-15,-10,-5,0,5,10,15,20,25,30,40,50 with 3 tiers (major at 0/±50, mid at ±25, quarter at ±10/±40) and labelled cent values at major ticks
+   121→   170→   170→- **Spring-physics needle** (Framer Motion `motion.g` with `type: 'spring', stiffness: 260, damping: 26, mass: 0.9`) — tapered polygon with drop-shadow filter, bright tip circle, and layered centre pivot
+   122→   171→   171→- **Pulsing emerald glow** (SVG `feGaussianBlur` filter + Framer Motion animate on needle-tip circle) when `isAccurate` (≤5 cents)
+   123→   172→   172→- **Centre display** inside the semicircle: large solfege Persian text (دو رِ می فا سل لا سی) with spring entrance animation, note name + octave + frequency below
+   124→   173→   173→- **Volume bar** at the top (thin gradient bar rose→amber→yellow)
+   125→   174→   174→- **Accuracy feedback** below arc: "عالی" / "خوب" / "قابل قبول" / "فالش" with matching colour, cents label, and direction text ("بم ←" / "→ زیر" / "کوک دقیق")
+   126→   175→   175→- **`dir="ltr"` wrapper** — arc follows musical convention (left=flat, right=sharp) even in RTL page
+   127→   176→   176→- **Dark mode** via Tailwind `dark:` classes on SVG elements using `currentColor` + `className`
+   128→   177→   177→- **Responsive**: `max-w-xs sm:max-w-sm md:max-w-md`, solfege text `text-5xl sm:text-6xl lg:text-7xl`
+   129→   178→   178→
+   130→   179→   179→### SVG Math
+   131→   180→   180→- Centre: (150, 150), Radius: 120, ViewBox: `0 0 300 165`
+   132→   181→   181→- `centsToAngle(c) = 180 - ((c+50)/100) * 180` — maps -50→180°, 0→90°, +50→0°
+   133→   182→   182→- Needle rotation: `needleAngle - 90` (needle drawn pointing up, rotated to target)
+   134→   183→   183→- Arc path uses sweep-flag=0 for upper semicircle (counter-clockwise in SVG y-down)
+   135→   184→   184→- All static geometry (segments, ticks) pre-computed at module level — zero re-computation per render
+   136→   185→   185→
+   137→   186→   186→### Props Interface (unchanged)
+   138→   187→   187→```typescript
+   139→   188→   188→interface TunerGaugeProps {
+   140→   189→   189→  cents: number; noteName: string; solfege: string;
+   141→   190→   190→  octave: number; frequency: number; isAccurate: boolean;
+   142→   191→   191→  isActive: boolean; volume: number;
+   143→   192→   192→}
+   144→   193→   193→```
+   145→   194→   194→
+   146→   195→   195→### Verification
+   147→   196→   196→- ✅ `bun run lint` — 0 errors, 0 warnings
+   148→   197→   197→- ✅ SVG arc sweep direction verified mathematically (upper semicircle)
+   149→   198→   198→- ✅ strokeDasharray segment boundaries verified at i=0, i=30, i=59
+   150→   199→   199→- ✅ No changes to props interface — drop-in replacement
+   151→   200→   200→
+   152→   201→   201→### Files Modified
+   153→   202→   202→- `src/components/tuner-gauge.tsx` — **REWRITTEN** — full SVG circular arc gauge
+   154→   203→   203→
+   155→   204→   204→---
+   156→   205→   205→Task ID: 5
+   157→   206→   206→Agent: Utility Components Sub-agent
+   158→   207→   207→Task: Create theme toggle, session timer, and keyboard shortcuts hook
+   159→   208→   208→
+   160→   209→   209→Work Log:
+   161→   210→   210→- Created `src/components/theme-toggle.tsx` — dark/light mode toggle using next-themes `useTheme()`, Sun/Moon icons from lucide-react, Framer Motion AnimatePresence with rotating animation. Used `useSyncExternalStore` for hydration-safe client detection (avoids `setState`-in-effect lint error with React 19).
+   162→   211→   211→- Created `src/components/session-timer.tsx` — live session timer with Persian numerals (۰-۹). Uses `setInterval` with 1-second tick, resets via first-tick callback pattern to avoid synchronous setState in effect. Shows pulsing emerald dot when active (Framer Motion AnimatePresence), muted text when idle. Label: "زمان تمرین".
+   163→   212→   212→- Created `src/hooks/use-keyboard-shortcuts.ts` — custom hook for Space (toggle mic), ArrowLeft (prev), ArrowRight (next). Guards against firing when focused on input/textarea/contentEditable. Escape reserved for modals. Properly cleans up event listener.
+   164→   213→   213→- Fixed React 19 strict lint errors: replaced `useState+useEffect(setMounted)` with `useSyncExternalStore` in theme toggle; replaced ref-based elapsed time computation with state-based approach in session timer.
+   165→   214→   214→- Verified: `bun run lint` — 0 errors, 0 warnings.
+   166→   215→   215→
+   167→   216→   216→Stage Summary:
+   168→   217→   217→- 3 new files created, 0 existing files modified
+   169→   218→   218→- `src/components/theme-toggle.tsx` — compact Sun/Moon toggle with Framer Motion rotation
+   170→   219→   219→- `src/components/session-timer.tsx` — MM:SS timer with Persian digits and pulsing indicator
+   171→   220→   220→- `src/hooks/use-keyboard-shortcuts.ts` — keyboard shortcuts hook (Space, ArrowLeft, ArrowRight)
+   172→   221→   221→- All files pass ESLint with React 19 strict rules
+   173→   222→   222→
+   174→   223→   223→---
+   175→   224→   224→Task ID: 8-achievements
+   176→   225→   225→Agent: Main Agent
+   177→   226→   226→Task: Create achievements/milestone badge system component
+   178→   227→   227→
+   179→   228→   228→## Completed
+   180→   229→   229→
+   181→   230→   230→Created `src/components/achievements.tsx` — a self-contained achievement tracking component.
+   182→   231→   231→
+   183→   232→   232→### Design
+   184→   233→   233→- **12 achievements** with Persian names and descriptions, covering 4 categories: accuracy (emerald), streak (amber), notes (sky), time (violet)
+   185→   234→   234→- **Compact collapsed state**: Clickable header row showing Trophy icon + title, up to 3 latest unlocked achievement badges (shadcn/ui `Badge` with category colors), and a Persian-numeral count "X/۱۲ دستاورد" with animated chevron
+   186→   235→   235→- **Expanded grid state**: 2-col (mobile) / 3-col (desktop) grid of all achievements, each card with:
+   187→   236→   236→  - Large emoji (text-2xl)
+   188→   237→   237→  - Bold Persian name
+   189→   238→   238→  - Muted description (text-[11px])
+   190→   239→   239→  - Category-colored gradient border (outer div with gradient bg + inner div)
+   191→   240→   240→  - Unlocked: gradient background, checkmark icon in colored circle, full opacity
+   192→   241→   241→  - Locked: gray border, Lock icon in muted circle, 40% opacity
+   193→   242→   242→- **Framer Motion**: `AnimatePresence` for expand/collapse (height + opacity), staggered card entrance (y + opacity with per-card delay)
+   194→   243→   243→- **Dark mode**: Full support via `dark:` variants on all category colors
+   195→   244→   244→- **Persian digits**: Count display uses `toPersianDigits()` helper
+   196→   245→   245→
+   197→   246→   246→### Props Interface
+   198→   247→   247→```typescript
+   199→   248→   248→interface AchievementsProps {
+   200→   249→   249→  totalNotes: number;
+   201→   250→   250→  accurateNotes: number;
+   202→   251→   251→  accuracy: number;
+   203→   252→   252→  bestStreak: number;
+   204→   253→   253→  practiceSeconds: number;
+   205→   254→   254→}
+   206→   255→   255→```
+   207→   256→   256→
+   208→   257→   257→### Verification
+   209→   258→   258→- ✅ `bun run lint` — 0 errors, 0 warnings
+   210→   259→   259→- ✅ No existing files modified
+   211→   260→   260→
+   212→   261→   261→### Files Created
+   213→   262→   262→- `src/components/achievements.tsx` — **NEW** — achievement badge system
+   214→   263→   263→
+   215→   264→   264→---
+   216→   265→   265→Task ID: 9-css-enhance
+   217→   266→   266→Agent: Main Agent
+   218→   267→   267→Task: Enhance globals.css with polished utilities and better styling
+   219→   268→   268→
+   220→   269→   269→## Completed
+   221→   270→   270→
+   222→   271→   271→Enhanced `/home/z/my-project/src/app/globals.css` with 9 improvements — no other files modified.
+   223→   272→   272→
+   224→   273→   273→### Changes Made
+   225→   274→   274→1. **Better scrollbar styling** — Added Firefox support (`scrollbar-width: thin; scrollbar-color: var(--border) transparent`), horizontal scrollbar (`height: 6px` on `::-webkit-scrollbar`), smoother thumb hover transition (`transition: background 200ms ease`), and transparent `::-webkit-scrollbar-corner`
+   226→   275→   275→2. **Subtle dot grid background** — `body` gets `radial-gradient(circle, rgba(0,0,0,0.03) 1px, transparent 1px)` at 24px spacing; `.dark body` uses `rgba(255,255,255,0.03)`
+   227→   276→   276→3. **`.card-hover` utility** — `transform: translateY(-1px)` + elevated `box-shadow` on hover, 200ms ease transition; dark mode gets stronger shadow
+   228→   277→   277→4. **`.glass` glassmorphism utility** — `backdrop-filter: blur(16px)` + `background: rgba(255,255,255,0.7)`; `.dark .glass` uses `rgba(0,0,0,0.5)`; includes `-webkit-backdrop-filter` for Safari
+   229→   278→   278→5. **`.gradient-text` utility** — `background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent` with a primary → rose → amber gradient
+   230→   279→   279→6. **`@keyframes pulse-glow` animation** — Subtle scale(1→1.05) + opacity(1→0.85) pulse, 2s ease-in-out infinite; applied via `.animate-pulse-glow` class
+   231→   280→   280→7. **Smooth theme transitions** — Merged into existing `*` rule: `transition-property: border-color, background-color, color, fill, stroke, opacity, box-shadow; transition-timing-function: ease; transition-duration: 150ms`; added `prefers-reduced-motion` media query to disable for accessibility
+   232→   281→   281→8. **Selection styling** — `::selection` with rose-500 at 20% opacity background (`oklch(0.645 0.246 16.439 / 20%)`), plus `::-moz-selection` for Firefox
+   233→   282→   282→9. **Focus ring improvement** — `:focus-visible` with `outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px`
+   234→   283→   283→
+   235→   284→   284→### Technical Notes
+   236→   285→   285→- No `@layer` directives used (Turbopack incompatibility)
+   237→   286→   286→- Fixed existing scrollbar `hsl(var(--border))` to `var(--border)` directly since vars are oklch values
+   238→   287→   287→- Firefox scrollbar uses standard `scrollbar-width`/`scrollbar-color` properties
+   239→   288→   288→- All transitions respect `prefers-reduced-motion: reduce`
+   240→   289→   289→
+   241→   290→   290→### Verification
+   242→   291→   291→- ✅ `bun run lint` — 0 errors, 0 warnings
+   243→   292→   292→
+   244→   293→   293→### Files Modified
+   245→   294→   294→- `src/app/globals.css` — **MODIFIED** — 9 CSS enhancements added
+   246→   295→   295→
+   247→   296→   296→---
+   248→   297→   297→Task ID: 10-phase4-integration
+   249→   298→   298→Agent: Main Agent (Phase 4 — Final Review & Enhancement)
+   250→   299→   299→Task: Integrate all new components, wire piano to practice mode, final QA
+   251→   300→   300→
+   252→   301→   301→## Current Project Status Assessment
+   253→   302→   302→**Phase: Production-Ready Feature-Rich Application — Phase 4 Complete**
+   254→   303→   303→
+   255→   304→   304→The app has been upgraded from a solid solfège tool to a polished, gamified music practice platform. Phase 4 focused on visual redesign of the core tuner gauge, dark mode support, gamification, and comprehensive styling improvements.
+   256→   305→   305→
+   257→   306→   306→## Completed Changes
+   258→   307→   307→
+   259→   308→   308→### 1. Premium Circular Arc Gauge (Complete Rewrite)
+   260→   309→   309→- Replaced linear bar gauge with SVG semicircular arc gauge (speedometer style)
+   261→   310→   310→- 60 color-interpolated arc segments: dark-red (±50¢) → red → orange → yellow → emerald (0¢)
+   262→   311→   311→- Spring-physics needle with drop-shadow filter and bright tip
+   263→   312→   312→- Pulsing emerald glow on needle tip when pitch is accurate (≤5¢)
+   264→   313→   313→- All static geometry pre-computed at module level (zero re-render cost)
+   265→   314→   314→- LTR forced for musical convention, dark mode support
+   266→   315→   315→
+   267→   316→   316→### 2. Dark Mode
+   268→   317→   317→- Added `ThemeProvider` from `next-themes` to `layout.tsx`
+   269→   318→   318→- Created `theme-toggle.tsx`: Sun/Moon animated toggle in header
+   270→   319→   319→- Hydration-safe via `useSyncExternalStore`
+   271→   320→   320→- Smooth theme transition via CSS (150ms on border-color, bg-color, color, fill, stroke, opacity, box-shadow)
+   272→   321→   321→
+   273→   322→   322→### 3. Session Timer
+   274→   323→   323→- Created `session-timer.tsx`: live MM:SS counter with Persian numerals
+   275→   324→   324→- Shows pulsing green dot when recording
+   276→   325→   325→- Integrated at top of tuner card
+   277→   326→   326→- Practice seconds tracked separately in page.tsx for achievements
+   278→   327→   327→
+   279→   328→   328→### 4. Achievement Badge System
+   280→   329→   329→- Created `achievements.tsx`: 12 achievements across 4 categories (accuracy/streak/notes/time)
+   281→   330→   330→- Compact collapsed state: Trophy + latest 3 unlocked badges + count
+   282→   331→   331→- Expanded state: 2-col/3-col grid with gradient border cards, staggered animations
+   283→   332→   332→- Category-colored accents (emerald/amber/sky/violet)
+   284→   333→   333→- Locked achievements at 40% opacity with lock icon
+   285→   334→   334→
+   286→   335→   335→### 5. Keyboard Shortcuts
+   287→   336→   336→- Created `use-keyboard-shortcuts.ts` hook
+   288→   337→   337→- Space = toggle microphone
+   289→   338→   338→- Arrow keys = practice mode navigation
+   290→   339→   339→- Skips when focused on inputs/textareas
+   291→   340→   340→- Hint shown in header on desktop
+   292→   341→   341→
+   293→   342→   342→### 6. Piano Keyboard → Practice Mode Wiring
+   294→   343→   343→- Added `onTargetChange` and `onStreakChange` callbacks to `PracticeMode`
+   295→   344→   344→- Piano keyboard now highlights practice target note with violet border/glow
+   296→   345→   345→- Best streak exposed for achievements tracking
+   297→   346→   346→
+   298→   347→   347→### 7. CSS Enhancements (globals.css)
+   299→   348→   348→- Dot grid background pattern (subtle texture)
+   300→   349→   349→- `.card-hover` utility (elevation on hover)
+   301→   350→   350→- `.glass` glassmorphism utility (used on header/footer)
+   302→   351→   351→- `.gradient-text` utility
+   303→   352→   352→- `pulse-glow` animation
+   304→   353→   353→- Smooth 150ms theme transitions with `prefers-reduced-motion` guard
+   305→   354→   354→- Rose-500 selection styling
+   306→   355→   355→- Improved focus-visible rings
+   307→   356→   356→- Firefox scrollbar support
+   308→   357→   357→
+   309→   358→   358→### 8. Page Layout Updates
+   310→   359→   359→- Header: glass effect, theme toggle, session timer, keyboard hint
+   311→   360→   360→- Footer: glass effect, version number
+   312→   361→   361→- Tips section: expanded to 8 tips (added keyboard shortcuts, dark mode, achievements)
+   313→   362→   362→- Cards: `card-hover` class for elevation on hover
+   314→   363→   363→- Achievements card added between stats and voice range
+   315→   364→   364→
+   316→   365→   365→## File Manifest (Phase 4)
+   317→   366→   366→- `src/app/layout.tsx` — **MODIFIED** — Added ThemeProvider from next-themes
+   318→   367→   367→- `src/app/page.tsx` — **REWRITTEN** — Full integration of all Phase 4 components
+   319→   368→   368→- `src/app/globals.css` — **MODIFIED** — 9 CSS enhancements
+   320→   369→   369→- `src/components/tuner-gauge.tsx` — **REWRITTEN** — SVG circular arc gauge
+   321→   370→   370→- `src/components/theme-toggle.tsx` — **NEW** — Dark/light mode toggle
+   322→   371→   371→- `src/components/session-timer.tsx` — **NEW** — Live session timer
+   323→   372→   372→- `src/components/achievements.tsx` — **NEW** — Achievement badge system
+   324→   373→   373→- `src/hooks/use-keyboard-shortcuts.ts` — **NEW** — Keyboard shortcuts hook
+   325→   374→   374→- `src/components/practice-mode.tsx` — **MODIFIED** — Added onTargetChange, onStreakChange callbacks
+   326→   375→   375→
+   327→   376→   376→## Verification Results
+   328→   377→   377→- ✅ `bun run lint` — 0 errors, 0 warnings
+   329→   378→   378→- ✅ HTTP 200 on desktop (1440×900) and mobile (iPhone 14)
+   330→   379→   379→- ✅ Zero browser console errors (no React warnings, no CSS errors)
+   331→   380→   380→- ✅ Dark mode toggle verified (light → dark → light)
+   332→   381→   381→- ✅ Session timer visible and labeled "زمان تمرین"
+   333→   382→   382→- ✅ Achievements section expandable, showing "۰/۱۲ دستاورد" (all locked)
+   334→   383→   383→- ✅ All components visible: circular gauge, piano, practice, reference, interval, voice range, metronome, history, chart, achievements, timer
+   335→   384→   384→- ✅ Screenshots: `/download/phase4-desktop.png`, `/download/phase4-mobile.png`, `/download/phase4-dark.png`, `/download/phase4-desktop-final.png`
+   336→   385→   385→
+   337→   386→   386→## Complete Feature List (Updated — 24 features)
+   338→   387→   387→1. Real-time autocorrelation pitch detection (Web Audio API)
+   339→   388→   388→2. **Premium SVG circular arc gauge** with spring-physics needle
+   340→   389→   389→3. Waveform visualization (canvas)
+   341→   390→   390→4. Interactive piano keyboard (2 octaves, **practice target highlighting**)
+   342→   391→   391→5. Practice mode (natural + chromatic, 3 difficulty levels, scoring)
+   343→   392→   392→6. Interval trainer (seconds through octaves, scoring, streaks)
+   344→   393→   393→7. Voice range detector with classification (soprano/alto/tenor/bass)
+   345→   394→   394→8. Audio reference playback (click any note to hear it)
+   346→   395→   395→9. Audio feedback sounds (chime on correct, buzz on wrong)
+   347→   396→   396→10. Metronome (30-220 BPM, 4/4, presets)
+   348→   397→   397→11. Note history with color-coded accuracy
+   349→   398→   398→12. Session persistence (Prisma/SQLite)
+   350→   399→   399→13. Performance charts (recharts bar chart)
+   351→   400→   400→14. CSV export of practice data
+   352→   401→   401→15. Responsive design (mobile-first)
+   353→   402→   402→16. **Dark/light mode toggle** with smooth transitions
+   354→   403→   403→17. RTL Persian layout
+   355→   404→   404→18. Framer Motion animations throughout
+   356→   405→   405→19. **Achievement badge system** (12 achievements, 4 categories)
+   357→   406→   406→20. **Session timer** (Persian numerals, live counter)
+   358→   407→   407→21. **Keyboard shortcuts** (Space, arrow keys)
+   359→   408→   408→22. **Piano keyboard wired to practice mode** target note
+   360→   409→   409→23. **Glassmorphism** header and footer
+   361→   410→   410→24. **Dot grid background** texture
+   362→   411→   411→
+   363→   412→   412→## Unresolved Issues / Risks
+   364→   413→   413→1. **Microphone access**: Cannot be fully tested in sandbox — requires real browser with mic permission
+   365→   414→   414→2. **AudioContext restrictions**: Some browsers require user gesture; feedback sounds use singleton context to mitigate
+   366→   415→   415→3. **Metronome + Tuner conflict**: Metronome disabled during tuner to avoid audio conflicts
+   367→   416→   416→4. **Turbopack CSS**: `@layer` directive not supported — workaround: use plain CSS
+   368→   417→   417→5. **Session timer doesn't persist**: Timer resets on page reload (by design — tracks current session only)
+   369→   418→   418→
+   370→   419→   419→## Priority Recommendations for Next Phase
+   371→   420→   420→1. **PWA support**: Make installable on mobile (manifest.json, service worker)
+   372→   421→   421→2. **Metronome + Tuner coexistence**: Use separate audio contexts to allow simultaneous use
+   373→   422→   422→3. **Sheet music display**: Show simple musical notation for exercises
+   374→   423→   423→4. **Performance history trends**: Weekly/monthly accuracy line charts
+   375→   424→   424→5. **Export session as PDF**: Formatted practice report
+   376→   425→   425→6. **Customizable gauge colors/theme**: User preferences for color scheme
+   377→   426→   426→7. **Practice mode randomization**: Shuffle mode for notes
+   378→   427→   427→8. **Sound-on/off toggle**: Allow disabling feedback sounds
+   379→   428→   428→9. **Multi-user profiles**: Track separate user progress in database
+   380→   429→   429→10. **Responsive piano**: Allow scrolling to see all octaves on mobile
+   381→   430→   430→
+   382→   431→   431→---
+   383→   432→   432→Task ID: 11-waveform-v2
+   384→   433→   433→Agent: Main Agent
+   385→   434→   434→Task: Major visual upgrade to waveform visualizer — dual-mode waveform + frequency spectrum
+   386→   435→   435→
+   387→   436→   436→## Completed
+   388→   437→   437→
+   389→   438→   438→Rewrote `src/components/waveform-visualizer.tsx` from a single-line waveform to a **dual-mode canvas visualization** with enhanced waveform (top 55%) and frequency spectrum bars (bottom 45%).
+   390→   439→   439→
+   391→   440→   440→### Design — Waveform Zone (top 55%)
+   392→   441→   441→- **Gradient fill** below waveform line: closed path (line → bottom of zone → start) with horizontal gradient from rose-500/10 at edges to rose-500/5 at center
+   393→   442→   442→- **Waveform line**: horizontal gradient from rose-400 through amber-400 to rose-400 (preserved from original)
+   394→   443→   443→- **Glow effect**: 8px-wide stroke at low opacity behind the main line
+   395→   444→   444→- **Mirror reflection**: waveform mirrored below center line at 30% globalAlpha, using the same rose→amber gradient
+   396→   445→   445→- **Center reference line**: dashed, very subtle (muted foreground at ~8-10% opacity)
+   397→   446→   446→- **Inactive state**: flat line at center + empty bars at ~5% height
+   398→   447→   447→
+   399→   448→   448→### Design — Frequency Spectrum Zone (bottom 45%)
+   400→   449→   449→- **40 bars** across the width using `getByteFrequencyData`
+   401→   450→   450→- **Bar colors**: per-bar RGB interpolation from emerald (low freq) through amber (mid) to rose (high freq)
+   402→   451→   451→- **Rounded top corners**: `arcTo`-based `roundedBar()` helper with clamped radius
+   403→   452→   452→- **Glow effect**: each bar drawn twice — once wider (barW+2) at low opacity, once normal at full opacity
+   404→   453→   453→- **Logarithmic height mapping**: `log(1 + normalized*9) / log(10) * maxH` for better visual distribution across frequency range
+   405→   454→   454→- **Inactive state**: all bars at 5% of max height, muted slate color
+   406→   455→   455→
+   407→   456→   456→### Layout & Structure
+   408→   457→   457→- Canvas height increased: `h-24 sm:h-28` (was `h-16 sm:h-20`)
+   409→   458→   458→- Parent `<div>` provides `rounded-xl overflow-hidden bg-muted/20`; canvas is `block` to prevent inline spacing
+   410→   459→   459→- Subtle divider line between waveform and frequency zones (8px inset, ~6% opacity)
+   411→   460→   460→- 8px horizontal padding for bars
+   412→   461→   461→
+   413→   462→   462→### Dark Mode
+   414→   463→   463→- Dark mode detection via `document.documentElement.classList.contains('dark')` (simple approach, checked per frame)
+   415→   464→   464→- Light mode: full-opacity HSL colors for waveform, 85% opacity for bars, rose-500/10 and rose-500/5 for fill
+   416→   465→   465→- Dark mode: 70% opacity for waveform, 60% opacity for bars, halved fill opacity, reduced glow
+   417→   466→   466→
+   418→   467→   467→### Technical Details
+   419→   468→   468→- **Props interface unchanged** — drop-in replacement: `{ isActive, analyserNode, className? }`
+   420→   469→   469→- **stateRef pattern preserved** — ref-based prop sync + animation loop (no stale closure issues)
+   421→   470→   470→- **Module-level helpers**: `drawBars()`, `drawInactiveBars()`, `roundedBar()`, `lerp()`, `isDark()` — zero re-creation per render
+   422→   471→   471→- **TypedArrays allocated once**: `Float32Array(2048)` for waveform, `Uint8Array(1024)` for frequency — no GC pressure in animation loop
+   423→   472→   472→- **Resize handling**: devicePixelRatio-aware resize with `setTransform` reset
+   424→   473→   473→- **Cleanup**: `cancelAnimationFrame` + `removeEventListener` in effect return
+   425→   474→   474→- **Accessibility**: `aria-hidden="true"` on canvas (decorative)
+   426→   475→   475→
+   427→   476→   476→### Verification
+   428→   477→   477→- ✅ `bun run lint` — 0 errors, 0 warnings
+   429→   478→   478→- ✅ No existing files modified (except the target file)
+   430→   479→   479→- ✅ Props interface unchanged — drop-in replacement
+   431→   480→   480→
+   432→   481→   481→### Files Modified
+   433→   482→   482→- `src/components/waveform-visualizer.tsx` — **REWRITTEN** — dual-mode waveform + frequency spectrum visualization
+   434→   483→   483→
+   435→   484→   484→---
+   436→   485→   485→Task ID: 7
+   437→   486→   486→Agent: Main
+   438→   487→   487→Task: Tuner controls bar, persisted state hook, and practice shuffle mode
+   439→   488→   488→
+   440→   489→   489→## Summary
+   441→   490→   490→Three new features: (1) generic localStorage persistence hook, (2) compact tuner control bar with A4 calibration, sound toggle, and cent-trend sparkline, (3) shuffle/random mode toggle in practice mode.
+   442→   491→   491→
+   443→   492→   492→## Files Created
+   444→   493→   493→- `src/hooks/use-persisted-state.ts` — generic `usePersistedState<T>(key, defaultValue)` hook that reads/writes JSON to localStorage with SSR safety
+   445→   494→   494→- `src/components/tuner-controls.tsx` — horizontal control bar exporting `TunerControls`, `useA4Freq`, `useSoundEnabled`
+   446→   495→   495→
+   447→   496→   496→## Files Modified
+   448→   497→   497→- `src/components/practice-mode.tsx` — added shuffle mode toggle button in CardHeader, random index selection on auto-advance and skip
+   449→   498→   498→
+   450→   499→   499→### `use-persisted-state.ts`
+   451→   500→   500→- Generic hook `<T>` with initializer that reads from `localStorage.getItem` on mount (SSR-safe `typeof window` check)
+   452→   501→   501→- `useEffect` syncs state to localStorage on every change
+   453→   502→   502→- Silent catch for unavailable storage
+   454→   503→   503→
+   455→   504→   504→### `tuner-controls.tsx`
+   456→   505→   505→- **`useA4Freq()`** — persisted to `solfeggio-a4-freq`, default 440, range 420–460
+   457→   506→   506→  - ±1 Hz buttons (Minus/Plus icons), disabled at bounds
+   458→   507→   507→  - Persian numeral display via `toPersianNum()` helper (۰–۹)
+   459→   508→   508→  - Amber color when not 440 Hz
+   460→   509→   509→  - RTL `dir="rtl"` wrapper for Persian text flow
+   461→   510→   510→- **`useSoundEnabled()`** — persisted to `solfeggio-sound-on`, default true
+   462→   511→   511→  - `Volume2` icon when on, `VolumeX` when muted
+   463→   512→   512→  - `text-muted-foreground` class when disabled
+   464→   513→   513→- **`CentSparkline`** — 80×24 SVG sparkline showing last 20 cents values
+   465→   514→   514→  - `computeSparkPoints()` helper: maps cents (±50 range) to SVG coords
+   466→   515→   515→  - Color based on average absolute cents: emerald (≤8), yellow (≤20), red (>20)
+   467→   516→   516→  - Fill below line at 10% opacity with matching color
+   468→   517→   517→  - 1px dot at latest data point
+   469→   518→   518→  - Framer Motion: `pathLength` animation on line, fade-in on fill, scale on dot
+   470→   519→   519→  - Flat muted line when <2 data points
+   471→   520→   520→- **`TunerControls` layout**: `flex items-center gap-3`, text-xs, sections separated by `w-px h-4 bg-border/50` dividers
+   472→   521→   521→
+   473→   522→   522→### `practice-mode.tsx` changes
+   474→   523→   523→- Added `Shuffle` to lucide-react imports
+   475→   524→   524→- Added `shuffleMode` state (`useState(false)`)
+   476→   525→   525→- Auto-advance timeout: if shuffleMode, picks random index different from current (do-while loop, guard for single-note scales)
+   477→   526→   526→- `handleNext`: same random logic, added `shuffleMode` to dependency array
+   478→   527→   527→- `useEffect` deps: added `shuffleMode` to pitch-matching effect
+   479→   528→   528→- Shuffle button: `h-7 w-7 p-0` ghost variant, amber background tint when active, placed next to بستن (close) button in a flex wrapper
+   480→   529→   529→
+   481→   530→   530→### Verification
+   482→   531→   531→- ✅ `bun run lint` — 0 errors, 0 warnings
+   483→   532→   532→- ✅ Dark mode support via Tailwind `dark:` classes
+   484→   533→   533→- ✅ All files marked `'use client'`
+   485→   534→   534→- ✅ shadcn/ui `Button` component used throughout
+   486→   535→   535→---
+   487→   536→   536→Task ID: 6-styling-polish
+   488→   537→   537→Agent: Styling Polish Sub-agent
+   489→   538→   538→Task: Enhance styling of reference-notes, note-history, and metronome components
+   490→   539→   539→
+   491→   540→   540→## Changes
+   492→   541→   541→
+   493→   542→   542→### reference-notes.tsx
+   494→   543→   543→- Added a gradient violet/purple icon circle (Music) in the section header, matching the icon style of other section headers in the app
+   495→   544→   544→- Applied `card-hover` class to the Card for hover elevation effect
+   496→   545→   545→- Added Framer Motion `layoutId="active-note-highlight"` on the active natural note button for smooth highlight transition between notes
+   497→   546→   546→- Converted sharp note divs to actual `<motion.button>` elements with `whileHover` and `whileTap` animations for consistency
+   498→   547→   547→- Added octave selector row (buttons for octave 3, 4, 5) with `useState(4)` — styled identically to practice-mode octave buttons (small, rounded, primary when active)
+   499→   548→   548→- Sharp note frequencies now correctly reference the selected octave's scale
+   500→   549→   549→- Added a pulse ring animation (`motion.span` with scale/opacity fade) when a note button is clicked/playing
+   501→   550→   550→- Dynamically shows the octave number next to each note label (e.g., `C4`, `C5`)
+   502→   551→   551→
+   503→   552→   552→### note-history.tsx
+   504→   553→   553→- Added tiny frequency display (Hz) in muted mono font (`text-[10px]`) below each note's solfège name, showing `{frequency} Hz`
+   505→   554→   554→- Improved empty state: wrapped the Music icon in a breathing/pulse `motion.div` animation (scale 1→1.15→1, opacity 0.3→0.6→0.3, infinite loop)
+   506→   555→   555→- Added a mini accuracy bar at the bottom of the note list: thin colored bar matching the stats card style (emerald/yellow/red gradient based on accuracy %), with a percentage label
+   507→   556→   556→- Added "نزدیک به حداکثر" warning text in amber color when note count exceeds 80, with a fade-in animation
+   508→   557→   557→
+   509→   558→   558→### metronome.tsx
+   510→   559→   559→- Added tap-tempo feature: a "تپ" (Tap) button with `Hand` icon from lucide-react, styled with distinct amber/orange accent colors (border, text, hover/active states)
+   511→   560→   560→- Tap tempo calculates BPM from the average of the last 4 tap intervals, with a 3-second timeout to reset
+   512→   561→   561→- When in tap mode, a small "tap" label appears next to the BPM number in amber color with a fade-in animation
+   513→   562→   562→- Added a pendulum/swing animation: a visual pendulum arm (thin line + colored dot) that swings left/right with each beat using Framer Motion spring animation
+   514→   563→   563→- The pendulum dot color matches the beat indicator (rose for beat 1, emerald for others)
+   515→   564→   564→- Added `setTapBpm(null)` when clicking preset buttons to clear the tap indicator
+   516→   565→   565→- Preset buttons now properly clear the tap visual indicator
+   517→   566→   566→
+   518→   567→   567→## Files Modified
+   519→   568→   568→- `src/components/reference-notes.tsx`
+   520→   569→   569→- `src/components/note-history.tsx`
+   521→   570→   570→- `src/components/metronome.tsx`
+   522→   571→   571→
+   523→   572→   572→### Verification
+   524→   573→   573→- ✅ `bun run lint` — 0 errors, 0 warnings
+   525→   574→   574→- ✅ Dark mode support via Tailwind `dark:` classes
+   526→   575→   575→- ✅ All files marked `'use client'`
+   527→   576→   576→
+   528→   577→   577→---
+   529→   578→   578→Task ID: 11-phase5
+   530→   579→   579→Agent: Main Agent (Phase 5 — Styling Polish + Feature Expansion)
+   531→   580→   580→Task: Fix bugs, enhance visuals, add new features and functionality
+   532→   581→   581→
+   533→   582→   582→## Current Project Status Assessment
+   534→   583→   583→**Phase: Production-Ready Gamified Music Practice Platform — Phase 5 Complete**
+   535→   584→   584→
+   536→   585→   585→Phase 5 focused on visual enhancement of the waveform/frequency display, adding professional-grade tuner controls, improving existing components, and adding practice mode randomization.
+   537→   586→   586→
+   538→   587→   587→## Bug Fixes
+   539→   588→   588→1. **tuner-gauge.tsx**: Fixed Framer Motion warning — added explicit initial={{ opacity: 0.2 }} to the arc segments motion.g
+   540→   589→   589→
+   541→   590→   590→## Styling Improvements
+   542→   591→   591→1. **Waveform + Frequency Visualizer** (complete rewrite): Dual-mode with gradient fill, mirror reflection, 40 frequency bars with logarithmic mapping and glow
+   543→   592→   592→2. **Reference Notes**: Octave selector (3/4/5), layoutId animations, icon header, card-hover
+   544→   593→   593→3. **Note History**: Frequency per note, breathing empty state, accuracy summary bar, 80-note limit warning
+   545→   594→   594→4. **Metronome**: Tap tempo (avg of 4 taps), pendulum swing animation
+   546→   595→   595→5. **Tuner Card**: Active recording glow border (rose-500/40)
+   547→   596→   596→
+   548→   597→   597→## New Features
+   549→   598→   598→1. A4 Frequency Calibration (420-460 Hz, persisted)
+   550→   599→   599→2. Sound Toggle (persisted)
+   551→   600→   600→3. Mini Cent Sparkline (last 20 notes, color-coded)
+   552→   601→   601→4. Practice Mode Shuffle/Random
+   553→   602→   602→5. usePersistedState generic hook
+   554→   603→   603→
+   555→   604→   604→## File Manifest (Phase 5)
+   556→   605→   605→- src/app/page.tsx — MODIFIED — TunerControls, active glow, tips update, v3.0
+   557→   606→   606→- src/components/tuner-gauge.tsx — MODIFIED — Fixed FM initial opacity
+   558→   607→   607→- src/components/waveform-visualizer.tsx — REWRITTEN — Dual-mode viz
+   559→   608→   608→- src/components/tuner-controls.tsx — NEW — A4 + sound + sparkline
+   560→   609→   609→- src/components/reference-notes.tsx — MODIFIED — Octave selector, animations
+   561→   610→   610→- src/components/note-history.tsx — MODIFIED — Freq, breathing, accuracy bar
+   562→   611→   611→- src/components/metronome.tsx — MODIFIED — Tap tempo, pendulum
+   563→   612→   612→- src/components/practice-mode.tsx — MODIFIED — Shuffle mode
+   564→   613→   613→- src/hooks/use-persisted-state.ts — NEW — Generic localStorage hook
+   565→   614→   614→
+   566→   615→   615→## Verification
+   567→   616→   616→- bun run lint: 0 errors, 0 warnings
+   568→   617→   617→- Zero console errors on desktop and mobile
+   569→   618→   618→- 55 interactive buttons on page
+   570→   619→   619→- All new features verified via accessibility tree
+   571→   620→   620→
+   572→   621→   621→## Complete Feature List — 30 features total
+   573→   622→   622→1-24: (same as Phase 4)
+   574→   623→   623→25. A4 frequency calibration (420-460 Hz)
+   575→   624→   624→26. Sound on/off toggle
+   576→   625→   625→27. Cent trend sparkline
+   577→   626→   626→28. Practice mode shuffle
+   578→   627→   627→29. Active recording glow border
+   579→   628→   628→30. Generic persisted state hook
+   580→   629→   629→
+   581→   630→   630→## Risks
+   582→   631→   631→- A4 calibration UI exists but not yet wired to pitch-detection.ts (still hardcodes 440)
+   583→   632→   632→- Sound toggle hook exists but not yet consumed by practice/interval components
+   584→   633→   633→
+   585→   634→   634→## Next Phase Priorities
+   586→   635→   635→1. Wire A4 calibration to pitch detection
+   587→   636→   636→2. Wire sound toggle to practice/interval
+   588→   637→   637→3. PWA support
+   589→   638→   638→4. Metronome + Tuner coexistence
+   590→   639→   639→5. Practice scoring persistence
+   591→   640→   640→

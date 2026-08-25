@@ -118,11 +118,12 @@ function WhiteKey({
       className={cn(
         'relative flex flex-col items-center justify-end pb-2 pt-3',
         'bg-white dark:bg-zinc-100',
-        'border border-zinc-200 dark:border-zinc-300',
+        'border-x border-zinc-200/80 dark:border-zinc-300/60',
         'rounded-b-lg',
         'h-28 sm:h-32',
-        'select-none transition-colors duration-150',
-        'hover:bg-zinc-200 dark:hover:bg-zinc-200',
+        'select-none transition-all duration-150',
+        'hover:bg-zinc-100 dark:hover:bg-zinc-200',
+        'active:bg-zinc-200',
         'cursor-pointer',
         // Active glow
         isCurrent && 'bg-emerald-50 dark:bg-emerald-50 border-emerald-400',
@@ -147,20 +148,20 @@ function WhiteKey({
       <span
         className={cn(
           'text-xs sm:text-sm font-bold leading-tight text-zinc-700 dark:text-zinc-800',
-          isCurrent && 'text-emerald-700',
+          isCurrent && 'text-emerald-700 dark:text-emerald-800',
         )}
       >
         {keyData.label}
       </span>
 
       {/* Note name (small, below Persian label) */}
-      <span className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+      <span className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 font-medium">
         {keyData.note}
       </span>
 
       {/* Octave marker on C keys */}
       {isOctaveStart && (
-        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] text-zinc-400/70 dark:text-zinc-500/70 font-semibold tabular-nums">
           {keyData.octave}
         </span>
       )}
@@ -251,7 +252,7 @@ export function PianoKeyboard({
   };
 
   const wrapper = (
-    <div className="w-full max-w-2xl mx-auto overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 shadow-sm">
+    <div className="w-full max-w-2xl mx-auto overflow-hidden rounded-xl border border-zinc-200/80 dark:border-zinc-700/60 bg-gradient-to-b from-zinc-50 to-zinc-100/80 dark:from-zinc-900/60 dark:to-zinc-900/40 shadow-sm shadow-black/[0.04] dark:shadow-black/20">
       {/* Piano container — LTR for musical convention */}
       <div dir="ltr" className="relative flex">
         {/* White keys row */}
