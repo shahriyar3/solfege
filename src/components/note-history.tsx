@@ -54,14 +54,18 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
                   return (
                     <motion.div
                       key={`${note.note}${note.octave}-${notes.length - i}`}
-                      initial={{ opacity: 0, x: -15 }}
+                      initial={{ opacity: 0, x: 15 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 15 }}
-                      transition={{ duration: 0.2 }}
+                      exit={{ opacity: 0, x: -15 }}
+                      transition={{ duration: 0.25, ease: 'easeOut' }}
                       className={cn(
                         'flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors border-l-2',
                         style.leftBorder,
-                        i === 0 ? 'bg-muted/60' : i % 2 === 1 ? 'bg-muted/20' : 'hover:bg-muted/30'
+                        i === 0
+                          ? 'bg-muted/60 dark:bg-muted/40'
+                          : i % 2 === 1
+                            ? 'bg-muted/15 dark:bg-muted/10 opacity-80'
+                            : 'hover:bg-muted/30 dark:hover:bg-muted/20 opacity-70'
                       )}
                     >
                       {/* Note name + frequency */}

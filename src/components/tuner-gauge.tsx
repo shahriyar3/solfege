@@ -38,10 +38,13 @@ function centsToAngle(cents: number): number {
   return 180 - ((c + 50) / 100) * 180;
 }
 
-/** Polar (angle-deg) → SVG cartesian (y flipped) */
+/** Polar (angle-deg) → SVG cartesian (y flipped). Rounded to 2dp to prevent SSR/client hydration mismatch. */
 function polar(angleDeg: number, radius: number = R) {
   const rad = (angleDeg * Math.PI) / 180;
-  return { x: CX + radius * Math.cos(rad), y: CY - radius * Math.sin(rad) };
+  return {
+    x: Math.round((CX + radius * Math.cos(rad)) * 100) / 100,
+    y: Math.round((CY - radius * Math.sin(rad)) * 100) / 100,
+  };
 }
 
 /** SVG arc path from startAngle → endAngle (counter-clockwise = upper semicircle) */

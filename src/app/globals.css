@@ -167,13 +167,13 @@ body {
   scrollbar-color: var(--border) transparent;
 }
 
-/* Custom text selection */
+/* Custom text selection — rose/pink tint */
 ::selection {
-  background-color: oklch(0.645 0.246 16.439 / 20%);
+  background-color: oklch(0.65 0.2 10 / 25%);
   color: inherit;
 }
 ::-moz-selection {
-  background-color: oklch(0.645 0.246 16.439 / 20%);
+  background-color: oklch(0.65 0.2 10 / 25%);
   color: inherit;
 }
 
@@ -192,29 +192,31 @@ body {
               border-color 220ms ease;
 }
 .card-hover:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow:
-    0 8px 24px -4px rgba(0, 0, 0, 0.06),
-    0 4px 8px -2px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+    0 12px 32px -6px rgba(0, 0, 0, 0.08),
+    0 4px 10px -3px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
 }
 .dark .card-hover:hover {
   box-shadow:
-    0 8px 24px -4px rgba(0, 0, 0, 0.35),
-    0 4px 8px -2px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 12px 32px -6px rgba(0, 0, 0, 0.4),
+    0 4px 10px -3px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 /* Glassmorphism utility — refined with saturation boost */
 .glass {
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.5) brightness(1.02);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.02);
   background: rgba(255, 255, 255, 0.72);
   border-bottom-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .dark .glass {
   background: rgba(10, 10, 14, 0.6);
   border-bottom-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Gradient text utility */
@@ -319,45 +321,65 @@ body {
   opacity: 0.6;
 }
 
-/* ── Animated gradient border ────────────────────────────────── */
+/* ── Animated gradient border — conic rotation ───────────────── */
 .gradient-border {
   position: relative;
+  z-index: 0;
 }
 .gradient-border::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -2px;
   border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(135deg, #f43f5e, #f59e0b, #8b5cf6, #06b6d4);
-  background-size: 300% 300%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  background: conic-gradient(
+    from var(--gradient-angle, 0deg),
+    #f43f5e, #f59e0b, #8b5cf6, #06b6d4, #f43f5e
+  );
   opacity: 0;
   transition: opacity 0.4s ease;
+  z-index: -2;
+  animation: gradient-spin 4s linear infinite;
+}
+.gradient-border::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  border-radius: inherit;
+  background: var(--card, oklch(1 0 0));
+  z-index: -1;
+}
+.dark .gradient-border::after {
+  background: var(--card, oklch(0.205 0 0));
 }
 .gradient-border:hover::before {
-  opacity: 0.7;
+  opacity: 0.8;
 }
-@keyframes gradient-rotate {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes gradient-spin {
+  0% { --gradient-angle: 0deg; }
+  100% { --gradient-angle: 360deg; }
 }
-.gradient-border::before {
-  animation: gradient-rotate 4s ease infinite;
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 /* ── Floating animation ──────────────────────────────────────── */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-4px); }
 }
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+/* ── Soft scale pulse for active indicators ─────────────────── */
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
 }
 
 /* ── Glow pulse for active states ────────────────────────────── */
@@ -383,33 +405,52 @@ body {
 /* ── Dark mode neon accents for interactive elements ── */
 .dark .card-hover:hover {
   box-shadow:
-    0 8px 24px -4px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(244, 63, 94, 0.08),
-    0 0 40px -10px rgba(139, 92, 246, 0.08);
+    0 12px 32px -6px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(244, 63, 94, 0.1),
+    0 0 50px -12px rgba(139, 92, 246, 0.1);
 }
 
-/* ── Shimmer button effect ── */
-@keyframes btn-shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
+/* ── Shimmer button effect — diagonal sweep on hover ── */
 .btn-shimmer {
-  background-size: 200% auto;
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.08) 50%,
-    transparent 100%
-  );
-  animation: btn-shimmer 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
 }
-.dark .btn-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    transparent 100%
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.25) 45%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.25) 55%,
+    transparent 60%
   );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  transform: translateX(-100%);
+  transition: none;
+  pointer-events: none;
+}
+.btn-shimmer:hover::after {
+  animation: shimmer-sweep 0.7s ease-out forwards;
+}
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-100%); background-position: 100% 0; }
+  100% { transform: translateX(100%); background-position: -50% 0; }
+}
+.dark .btn-shimmer::after {
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 60%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
 }
 
 /* ── Card inner glow on hover (dark mode) ── */
@@ -427,15 +468,37 @@ body {
   opacity: 1;
 }
 
-/* ── Improved glass for dark mode ── */
-.dark .glass {
-  background: rgba(10, 10, 16, 0.65);
-  border-bottom-color: rgba(255, 255, 255, 0.04);
-}
-
 /* ── Active tuner card enhanced glow ── */
 .dark .tuner-card-glow.is-active {
   box-shadow:
     0 0 60px -20px rgba(244, 63, 94, 0.15),
     0 25px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Ripple effect on click for note buttons ── */
+.note-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.note-ripple::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(255,255,255,0.4) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+.note-ripple.ripple-active::before {
+  opacity: 1;
+  animation: ripple-expand 0.5s ease-out forwards;
+}
+@keyframes ripple-expand {
+  0% { opacity: 0.6; transform: scale(0.2); }
+  100% { opacity: 0; transform: scale(2.5); }
+}
+.dark .note-ripple::before {
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(255,255,255,0.15) 0%, transparent 70%);
 }

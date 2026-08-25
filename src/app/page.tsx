@@ -20,6 +20,7 @@ import { PianoKeyboard } from '@/components/piano-keyboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { PitchStability } from '@/components/pitch-stability';
 import { SettingsDrawer } from '@/components/settings-drawer';
+import { KeyboardShortcutsPanel } from '@/components/keyboard-shortcuts-panel';
 import { NoteQuiz } from '@/components/note-quiz';
 import { WarmupModule } from '@/components/warmup-module';
 import { ScoreSummary } from '@/components/score-summary';
@@ -28,6 +29,8 @@ import { BreathingExercise } from '@/components/breathing-exercise';
 import { TunerControls, useA4Freq, useSoundEnabled, useAccuracyThreshold } from '@/components/tuner-controls';
 import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
+import { NoteParticles } from '@/components/note-particles';
+import { DailyStreak, type DailyStreakHandle } from '@/components/daily-streak';
 import { cn } from '@/lib/utils';
 import {
   Mic,
@@ -74,7 +77,9 @@ export default function Home() {
   const [practiceSeconds, setPracticeSeconds] = useState(0);
   const practiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showScoreSummary, setShowScoreSummary] = useState(false);
+  const streakRef = useRef<DailyStreakHandle>(null);
 
   // Practice seconds tracker
   useEffect(() => {
@@ -137,6 +142,7 @@ export default function Home() {
       console.error('Error creating session:', err);
     }
     start();
+    streakRef.current?.recordPractice();
   }, [start]);
 
   const handleSave = useCallback(async () => {
@@ -226,6 +232,15 @@ export default function Home() {
             >
               <Settings2 className="h-4 w-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground/70 hover:text-foreground"
+              onClick={() => setShortcutsOpen(true)}
+              aria-label="میانبرهای کیبورد"
+            >
+              <span className="font-mono text-xs font-bold leading-none">?</span>
+            </Button>
             <ThemeToggle />
             {isActive && noteHistory.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-8 border-border/50">
@@ -273,16 +288,23 @@ export default function Home() {
                   </div>
                 </div>
 
-                <TunerGauge
-                  cents={currentPitch?.cents ?? 0}
-                  noteName={currentPitch?.note ?? '—'}
-                  solfege={currentPitch?.solfege ?? '—'}
-                  octave={currentPitch?.octave ?? 4}
-                  frequency={currentPitch?.frequency ?? 0}
-                  isAccurate={currentPitch?.isAccurate ?? false}
-                  isActive={isActive}
-                  volume={volume}
-                />
+                <div className="relative">
+                  <TunerGauge
+                    cents={currentPitch?.cents ?? 0}
+                    noteName={currentPitch?.note ?? '—'}
+                    solfege={currentPitch?.solfege ?? '—'}
+                    octave={currentPitch?.octave ?? 4}
+                    frequency={currentPitch?.frequency ?? 0}
+                    isAccurate={currentPitch?.isAccurate ?? false}
+                    isActive={isActive}
+                    volume={volume}
+                  />
+                  <NoteParticles
+                    isActive={isActive}
+                    isAccurate={currentPitch?.isAccurate ?? false}
+                    solfege={currentPitch?.solfege ?? ''}
+                  />
+                </div>
 
                 {/* Pitch stability meter */}
                 <div className="my-3">
@@ -398,6 +420,9 @@ export default function Home() {
 
           {/* Right column: Stats, Timer, Achievements, Metronome, History */}
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 animate-fade-up animation-delay-200">
+            {/* Daily streak */}
+            <DailyStreak ref={streakRef} />
+
             {/* Stats card */}
             <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover overflow-hidden">
               <div className="h-0.5 w-full bg-gradient-to-l from-violet-500 via-fuchsia-500 to-rose-500" />
@@ -576,6 +601,9 @@ export default function Home() {
 
       {/* Settings drawer */}
       <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Keyboard shortcuts panel */}
+      <KeyboardShortcutsPanel open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   );
 }

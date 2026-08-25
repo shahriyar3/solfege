@@ -18,6 +18,7 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
   const [beat, setBeat] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [tapBpm, setTapBpm] = useState<number | null>(null);
+  const [tapRipple, setTapRipple] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tapTimesRef = useRef<number[]>([]);
@@ -85,6 +86,8 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
         setBpm(calculatedBpm);
       }
     }
+    setTapRipple(true);
+    setTimeout(() => setTapRipple(false), 600);
   }, []);
 
   const formatTime = (s: number) => {
@@ -132,24 +135,42 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
           </div>
         </div>
 
-        <div className="flex justify-center gap-4 mb-4">
-          {[0, 1, 2, 3].map((i) => (
-            <motion.div
-              key={i}
-              className={cn(
-                'h-5 w-5 rounded-full transition-colors duration-75',
-                isPlaying && i === beat
-                  ? i === 0
-                    ? 'bg-rose-500 shadow-lg shadow-rose-500/40'
-                    : 'bg-emerald-500 shadow-lg shadow-emerald-500/40'
-                  : isPlaying
-                    ? 'bg-muted'
-                    : 'bg-muted/40'
-              )}
-              animate={isPlaying && i === beat ? { scale: [1, 1.4, 1], y: [0, -3, 0] } : { scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-            />
-          ))}
+        <div className="flex justify-center gap-5 mb-4">
+          {[0, 1, 2, 3].map(function(i) {
+            const isCurrentBeat = isPlaying && i === beat;
+            const isDownbeat = i === 0;
+            return (
+              <div key={i} className="relative flex items-center justify-center">
+                {isCurrentBeat && (
+                  <motion.div
+                    className={cn(
+                      'absolute rounded-full',
+                      isDownbeat
+                        ? 'w-10 h-10 ring-2 ring-rose-500/30'
+                        : 'w-9 h-9 ring-2 ring-emerald-500/30'
+                    )}
+                    initial={{ scale: 0.6, opacity: 0.8 }}
+                    animate={{ scale: 1.4, opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                  />
+                )}
+                <motion.div
+                  className={cn(
+                    'h-7 w-7 rounded-full transition-colors duration-75',
+                    isCurrentBeat
+                      ? isDownbeat
+                        ? 'bg-rose-500 shadow-xl shadow-rose-500/50'
+                        : 'bg-emerald-500 shadow-xl shadow-emerald-500/50'
+                      : isPlaying
+                        ? 'bg-muted'
+                        : 'bg-muted/40'
+                  )}
+                  animate={isCurrentBeat ? { scale: [1, 1.6, 1], y: [0, -4, 0] } : { scale: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                />
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex items-center justify-center gap-4 mb-4">
@@ -187,7 +208,16 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
         </div>
 
         <div className="flex items-center justify-center gap-2">
-          <motion.div whileTap={{ scale: 0.93 }}>
+          <motion.div whileTap={{ scale: 0.93 }} className="relative">
+            {/* Tap ripple ring */}
+            {tapRipple && (
+              <motion.span
+                className="absolute inset-0 rounded-md border-2 border-amber-400/40 pointer-events-none"
+                initial={{ scale: 0.9, opacity: 0.7 }}
+                animate={{ scale: 1.15, opacity: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -197,7 +227,8 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
                 'gap-1.5 text-xs h-8 border-amber-300 dark:border-amber-700',
                 'text-amber-700 dark:text-amber-400',
                 'hover:bg-amber-50 dark:hover:bg-amber-950/30',
-                'active:bg-amber-100 dark:active:bg-amber-950/50'
+                'active:bg-amber-100 dark:active:bg-amber-950/50',
+                tapRipple && 'scale-[0.97]'
               )}
             >
               <Hand className="h-3.5 w-3.5" />

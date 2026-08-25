@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { playNote, getSolfeggioScale } from '@/lib/audio-playback';
@@ -8,13 +8,13 @@ import { Music, Volume2 } from 'lucide-react';
 import { motion, LayoutGroup } from 'framer-motion';
 
 const NOTE_COLORS: Record<string, string> = {
-  'C': 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200/60 dark:border-red-800/30',
-  'D': 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200/60 dark:border-orange-800/30',
-  'E': 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/30',
-  'F': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/30',
-  'G': 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200/60 dark:border-teal-800/30',
-  'A': 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200/60 dark:border-sky-800/30',
-  'B': 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200/60 dark:border-violet-800/30',
+  'C': 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300 border-red-200/60 dark:border-red-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'D': 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200/60 dark:border-orange-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'E': 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'F': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'G': 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 border-teal-200/60 dark:border-teal-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'A': 'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border-sky-200/60 dark:border-sky-800/40 hover:brightness-105 dark:hover:brightness-110',
+  'B': 'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300 border-violet-200/60 dark:border-violet-800/40 hover:brightness-105 dark:hover:brightness-110',
 };
 
 const SHARP_COLORS: Record<string, string> = {
@@ -38,12 +38,17 @@ interface ReferenceNotesProps {
 export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
   const [refOctave, setRefOctave] = useState(4);
   const [playingNote, setPlayingNote] = useState<string | null>(null);
+  const [rippleKey, setRippleKey] = useState(0);
+  const rippleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scale = getSolfeggioScale(refOctave);
 
   const handlePlay = useCallback((freq: number, noteKey: string) => {
     playNote(freq, 1.0);
     setPlayingNote(noteKey);
+    setRippleKey(k => k + 1);
+    if (rippleTimerRef.current) clearTimeout(rippleTimerRef.current);
+    rippleTimerRef.current = setTimeout(() => setRippleKey(0), 500);
     setTimeout(() => setPlayingNote(null), 600);
   }, []);
 
@@ -76,9 +81,10 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
                   layoutId={isActive ? 'active-note-highlight' : undefined}
                   onClick={() => handlePlay(n.frequency, `${n.note}-${refOctave}`)}
                   className={cn(
-                    'relative flex flex-col items-center py-2.5 px-1 rounded-xl border text-center transition-all duration-200 cursor-pointer',
+                    'relative flex flex-col items-center py-2.5 px-1 rounded-xl border text-center transition-all duration-200 cursor-pointer note-ripple',
                     NOTE_COLORS[n.note],
-                    isActive && 'ring-2 ring-foreground/30 scale-110 shadow-lg'
+                    isActive && 'ring-2 ring-foreground/30 scale-110 shadow-lg',
+                    rippleKey > 0 && 'ripple-active'
                   )}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -114,9 +120,10 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
                   layoutId={isActive ? 'active-sharp-highlight' : undefined}
                   onClick={() => handlePlay(freq, `${sharpNote}-${refOctave}`)}
                   className={cn(
-                    'relative flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200 cursor-pointer border border-transparent',
+                    'relative flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200 cursor-pointer border border-transparent note-ripple',
                     SHARP_COLORS[sharpNote] || 'bg-muted/30 text-muted-foreground',
-                    isActive && 'ring-2 ring-foreground/20 bg-muted'
+                    isActive && 'ring-2 ring-foreground/20 bg-muted',
+                    rippleKey > 0 && 'ripple-active'
                   )}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
