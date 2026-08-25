@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { playClick } from '@/lib/audio-playback';
 import { motion } from 'framer-motion';
-import { Timer, Play, Pause, RotateCcw, Minus, Plus } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, Minus, Plus, Hand } from 'lucide-react';
 
 interface MetronomeProps {
   isTunerActive: boolean;
@@ -17,8 +17,10 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [beat, setBeat] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [tapBpm, setTapBpm] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tapTimesRef = useRef<number[]>([]);
 
   const stop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -38,7 +40,6 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
       intervalRef.current = setInterval(() => {
         currentBeat = (currentBeat + 1) % 4;
         setBeat(currentBeat);
-        // Accent the first beat
         const freq = currentBeat === 0 ? 1200 : 800;
         playClick(freq, 0.06);
       }, msPerBeat);
@@ -57,11 +58,44 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
     };
   }, [isPlaying, bpm]);
 
+  const handleTap = useCallback(() => {
+    const now = Date.now();
+    const times = tapTimesRef.current;
+
+    if (times.length > 0 && now - times[times.length - 1] > 3000) {
+      tapTimesRef.current = [];
+    }
+
+    tapTimesRef.current = [...tapTimesRef.current, now];
+
+    if (tapTimesRef.current.length > 4) {
+      tapTimesRef.current = tapTimesRef.current.slice(-4);
+    }
+
+    const t = tapTimesRef.current;
+    if (t.length >= 2) {
+      const intervals: number[] = [];
+      for (let i = 1; i < t.length; i++) {
+        intervals.push(t[i] - t[i - 1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const calculatedBpm = Math.round(60000 / avgInterval);
+      if (calculatedBpm >= 30 && calculatedBpm <= 300) {
+        setTapBpm(calculatedBpm);
+        setBpm(calculatedBpm);
+      }
+    }
+  }, []);
+
   const formatTime = (s: number) => {
     const min = Math.floor(s / 60);
     const sec = s % 60;
     return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
+
+  const pendulumRotate = isPlaying
+    ? (beat === 0 || beat === 2 ? 0 : beat === 1 ? 25 : -25)
+    : 0;
 
   return (
     <Card className="border border-border/50 shadow-lg shadow-black/5">
@@ -75,7 +109,27 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
           <span className="text-xs font-mono text-muted-foreground tabular-nums">{formatTime(elapsed)}</span>
         </div>
 
-        {/* Beat indicators */}
+        <div className="flex justify-center mb-4">
+          <div className="relative flex items-start justify-center w-20 h-9">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 h-2 w-2 rounded-full bg-foreground/30 z-10" />
+            <motion.div
+              className="absolute top-1 left-1/2 -translate-x-1/2 origin-top"
+              animate={{ rotate: pendulumRotate }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+              <div className="w-0.5 h-7 bg-gradient-to-b from-foreground/60 to-foreground/20 rounded-full mx-auto" />
+              <div className={cn(
+                'h-3 w-3 rounded-full mx-auto -mt-0.5',
+                isPlaying
+                  ? (beat === 0
+                    ? 'bg-rose-500 shadow-md shadow-rose-500/50'
+                    : 'bg-emerald-500 shadow-md shadow-emerald-500/50')
+                  : 'bg-muted-foreground/40'
+              )} />
+            </motion.div>
+          </div>
+        </div>
+
         <div className="flex justify-center gap-4 mb-4">
           {[0, 1, 2, 3].map((i) => (
             <motion.div
@@ -96,7 +150,6 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
           ))}
         </div>
 
-        {/* BPM display */}
         <div className="flex items-center justify-center gap-4 mb-4">
           <Button
             variant="outline"
@@ -107,7 +160,18 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
             <Minus className="h-3 w-3" />
           </Button>
           <div className="text-center min-w-[80px]">
-            <div className="text-3xl font-black tabular-nums leading-none">{bpm}</div>
+            <div className="text-3xl font-black tabular-nums leading-none">
+              {bpm}
+              {tapBpm !== null && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-xs font-normal text-amber-500 dark:text-amber-400 ml-1"
+                >
+                  tap
+                </motion.span>
+              )}
+            </div>
             <div className="text-[10px] text-muted-foreground mt-1">ضرب در دقیقه</div>
           </div>
           <Button
@@ -120,11 +184,25 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
           </Button>
         </div>
 
-        {/* Controls */}
         <div className="flex items-center justify-center gap-2">
-          <motion.div
-            whileTap={{ scale: 0.93 }}
-          >
+          <motion.div whileTap={{ scale: 0.93 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTap}
+              disabled={isTunerActive && !isPlaying}
+              className={cn(
+                'gap-1.5 text-xs h-8 border-amber-300 dark:border-amber-700',
+                'text-amber-700 dark:text-amber-400',
+                'hover:bg-amber-50 dark:hover:bg-amber-950/30',
+                'active:bg-amber-100 dark:active:bg-amber-950/50'
+              )}
+            >
+              <Hand className="h-3.5 w-3.5" />
+              تپ
+            </Button>
+          </motion.div>
+          <motion.div whileTap={{ scale: 0.93 }}>
             <Button
               variant={isPlaying ? 'default' : 'outline'}
               size="sm"
@@ -146,12 +224,11 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
           )}
         </div>
 
-        {/* Quick BPM presets */}
         <div className="flex justify-center gap-1.5 mt-3">
           {[60, 80, 100, 120].map((preset) => (
             <button
               key={preset}
-              onClick={() => setBpm(preset)}
+              onClick={() => { setBpm(preset); setTapBpm(null); }}
               className={cn(
                 'px-2.5 py-1 rounded-md text-[10px] font-medium transition-all',
                 bpm === preset

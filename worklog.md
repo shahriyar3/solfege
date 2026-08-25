@@ -427,3 +427,213 @@ The app has been upgraded from a solid solfège tool to a polished, gamified mus
 8. **Sound-on/off toggle**: Allow disabling feedback sounds
 9. **Multi-user profiles**: Track separate user progress in database
 10. **Responsive piano**: Allow scrolling to see all octaves on mobile
+
+---
+Task ID: 11-waveform-v2
+Agent: Main Agent
+Task: Major visual upgrade to waveform visualizer — dual-mode waveform + frequency spectrum
+
+## Completed
+
+Rewrote `src/components/waveform-visualizer.tsx` from a single-line waveform to a **dual-mode canvas visualization** with enhanced waveform (top 55%) and frequency spectrum bars (bottom 45%).
+
+### Design — Waveform Zone (top 55%)
+- **Gradient fill** below waveform line: closed path (line → bottom of zone → start) with horizontal gradient from rose-500/10 at edges to rose-500/5 at center
+- **Waveform line**: horizontal gradient from rose-400 through amber-400 to rose-400 (preserved from original)
+- **Glow effect**: 8px-wide stroke at low opacity behind the main line
+- **Mirror reflection**: waveform mirrored below center line at 30% globalAlpha, using the same rose→amber gradient
+- **Center reference line**: dashed, very subtle (muted foreground at ~8-10% opacity)
+- **Inactive state**: flat line at center + empty bars at ~5% height
+
+### Design — Frequency Spectrum Zone (bottom 45%)
+- **40 bars** across the width using `getByteFrequencyData`
+- **Bar colors**: per-bar RGB interpolation from emerald (low freq) through amber (mid) to rose (high freq)
+- **Rounded top corners**: `arcTo`-based `roundedBar()` helper with clamped radius
+- **Glow effect**: each bar drawn twice — once wider (barW+2) at low opacity, once normal at full opacity
+- **Logarithmic height mapping**: `log(1 + normalized*9) / log(10) * maxH` for better visual distribution across frequency range
+- **Inactive state**: all bars at 5% of max height, muted slate color
+
+### Layout & Structure
+- Canvas height increased: `h-24 sm:h-28` (was `h-16 sm:h-20`)
+- Parent `<div>` provides `rounded-xl overflow-hidden bg-muted/20`; canvas is `block` to prevent inline spacing
+- Subtle divider line between waveform and frequency zones (8px inset, ~6% opacity)
+- 8px horizontal padding for bars
+
+### Dark Mode
+- Dark mode detection via `document.documentElement.classList.contains('dark')` (simple approach, checked per frame)
+- Light mode: full-opacity HSL colors for waveform, 85% opacity for bars, rose-500/10 and rose-500/5 for fill
+- Dark mode: 70% opacity for waveform, 60% opacity for bars, halved fill opacity, reduced glow
+
+### Technical Details
+- **Props interface unchanged** — drop-in replacement: `{ isActive, analyserNode, className? }`
+- **stateRef pattern preserved** — ref-based prop sync + animation loop (no stale closure issues)
+- **Module-level helpers**: `drawBars()`, `drawInactiveBars()`, `roundedBar()`, `lerp()`, `isDark()` — zero re-creation per render
+- **TypedArrays allocated once**: `Float32Array(2048)` for waveform, `Uint8Array(1024)` for frequency — no GC pressure in animation loop
+- **Resize handling**: devicePixelRatio-aware resize with `setTransform` reset
+- **Cleanup**: `cancelAnimationFrame` + `removeEventListener` in effect return
+- **Accessibility**: `aria-hidden="true"` on canvas (decorative)
+
+### Verification
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ No existing files modified (except the target file)
+- ✅ Props interface unchanged — drop-in replacement
+
+### Files Modified
+- `src/components/waveform-visualizer.tsx` — **REWRITTEN** — dual-mode waveform + frequency spectrum visualization
+
+---
+Task ID: 7
+Agent: Main
+Task: Tuner controls bar, persisted state hook, and practice shuffle mode
+
+## Summary
+Three new features: (1) generic localStorage persistence hook, (2) compact tuner control bar with A4 calibration, sound toggle, and cent-trend sparkline, (3) shuffle/random mode toggle in practice mode.
+
+## Files Created
+- `src/hooks/use-persisted-state.ts` — generic `usePersistedState<T>(key, defaultValue)` hook that reads/writes JSON to localStorage with SSR safety
+- `src/components/tuner-controls.tsx` — horizontal control bar exporting `TunerControls`, `useA4Freq`, `useSoundEnabled`
+
+## Files Modified
+- `src/components/practice-mode.tsx` — added shuffle mode toggle button in CardHeader, random index selection on auto-advance and skip
+
+### `use-persisted-state.ts`
+- Generic hook `<T>` with initializer that reads from `localStorage.getItem` on mount (SSR-safe `typeof window` check)
+- `useEffect` syncs state to localStorage on every change
+- Silent catch for unavailable storage
+
+### `tuner-controls.tsx`
+- **`useA4Freq()`** — persisted to `solfeggio-a4-freq`, default 440, range 420–460
+  - ±1 Hz buttons (Minus/Plus icons), disabled at bounds
+  - Persian numeral display via `toPersianNum()` helper (۰–۹)
+  - Amber color when not 440 Hz
+  - RTL `dir="rtl"` wrapper for Persian text flow
+- **`useSoundEnabled()`** — persisted to `solfeggio-sound-on`, default true
+  - `Volume2` icon when on, `VolumeX` when muted
+  - `text-muted-foreground` class when disabled
+- **`CentSparkline`** — 80×24 SVG sparkline showing last 20 cents values
+  - `computeSparkPoints()` helper: maps cents (±50 range) to SVG coords
+  - Color based on average absolute cents: emerald (≤8), yellow (≤20), red (>20)
+  - Fill below line at 10% opacity with matching color
+  - 1px dot at latest data point
+  - Framer Motion: `pathLength` animation on line, fade-in on fill, scale on dot
+  - Flat muted line when <2 data points
+- **`TunerControls` layout**: `flex items-center gap-3`, text-xs, sections separated by `w-px h-4 bg-border/50` dividers
+
+### `practice-mode.tsx` changes
+- Added `Shuffle` to lucide-react imports
+- Added `shuffleMode` state (`useState(false)`)
+- Auto-advance timeout: if shuffleMode, picks random index different from current (do-while loop, guard for single-note scales)
+- `handleNext`: same random logic, added `shuffleMode` to dependency array
+- `useEffect` deps: added `shuffleMode` to pitch-matching effect
+- Shuffle button: `h-7 w-7 p-0` ghost variant, amber background tint when active, placed next to بستن (close) button in a flex wrapper
+
+### Verification
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ Dark mode support via Tailwind `dark:` classes
+- ✅ All files marked `'use client'`
+- ✅ shadcn/ui `Button` component used throughout
+---
+Task ID: 6-styling-polish
+Agent: Styling Polish Sub-agent
+Task: Enhance styling of reference-notes, note-history, and metronome components
+
+## Changes
+
+### reference-notes.tsx
+- Added a gradient violet/purple icon circle (Music) in the section header, matching the icon style of other section headers in the app
+- Applied `card-hover` class to the Card for hover elevation effect
+- Added Framer Motion `layoutId="active-note-highlight"` on the active natural note button for smooth highlight transition between notes
+- Converted sharp note divs to actual `<motion.button>` elements with `whileHover` and `whileTap` animations for consistency
+- Added octave selector row (buttons for octave 3, 4, 5) with `useState(4)` — styled identically to practice-mode octave buttons (small, rounded, primary when active)
+- Sharp note frequencies now correctly reference the selected octave's scale
+- Added a pulse ring animation (`motion.span` with scale/opacity fade) when a note button is clicked/playing
+- Dynamically shows the octave number next to each note label (e.g., `C4`, `C5`)
+
+### note-history.tsx
+- Added tiny frequency display (Hz) in muted mono font (`text-[10px]`) below each note's solfège name, showing `{frequency} Hz`
+- Improved empty state: wrapped the Music icon in a breathing/pulse `motion.div` animation (scale 1→1.15→1, opacity 0.3→0.6→0.3, infinite loop)
+- Added a mini accuracy bar at the bottom of the note list: thin colored bar matching the stats card style (emerald/yellow/red gradient based on accuracy %), with a percentage label
+- Added "نزدیک به حداکثر" warning text in amber color when note count exceeds 80, with a fade-in animation
+
+### metronome.tsx
+- Added tap-tempo feature: a "تپ" (Tap) button with `Hand` icon from lucide-react, styled with distinct amber/orange accent colors (border, text, hover/active states)
+- Tap tempo calculates BPM from the average of the last 4 tap intervals, with a 3-second timeout to reset
+- When in tap mode, a small "tap" label appears next to the BPM number in amber color with a fade-in animation
+- Added a pendulum/swing animation: a visual pendulum arm (thin line + colored dot) that swings left/right with each beat using Framer Motion spring animation
+- The pendulum dot color matches the beat indicator (rose for beat 1, emerald for others)
+- Added `setTapBpm(null)` when clicking preset buttons to clear the tap indicator
+- Preset buttons now properly clear the tap visual indicator
+
+## Files Modified
+- `src/components/reference-notes.tsx`
+- `src/components/note-history.tsx`
+- `src/components/metronome.tsx`
+
+### Verification
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ Dark mode support via Tailwind `dark:` classes
+- ✅ All files marked `'use client'`
+
+---
+Task ID: 11-phase5
+Agent: Main Agent (Phase 5 — Styling Polish + Feature Expansion)
+Task: Fix bugs, enhance visuals, add new features and functionality
+
+## Current Project Status Assessment
+**Phase: Production-Ready Gamified Music Practice Platform — Phase 5 Complete**
+
+Phase 5 focused on visual enhancement of the waveform/frequency display, adding professional-grade tuner controls, improving existing components, and adding practice mode randomization.
+
+## Bug Fixes
+1. **tuner-gauge.tsx**: Fixed Framer Motion warning — added explicit initial={{ opacity: 0.2 }} to the arc segments motion.g
+
+## Styling Improvements
+1. **Waveform + Frequency Visualizer** (complete rewrite): Dual-mode with gradient fill, mirror reflection, 40 frequency bars with logarithmic mapping and glow
+2. **Reference Notes**: Octave selector (3/4/5), layoutId animations, icon header, card-hover
+3. **Note History**: Frequency per note, breathing empty state, accuracy summary bar, 80-note limit warning
+4. **Metronome**: Tap tempo (avg of 4 taps), pendulum swing animation
+5. **Tuner Card**: Active recording glow border (rose-500/40)
+
+## New Features
+1. A4 Frequency Calibration (420-460 Hz, persisted)
+2. Sound Toggle (persisted)
+3. Mini Cent Sparkline (last 20 notes, color-coded)
+4. Practice Mode Shuffle/Random
+5. usePersistedState generic hook
+
+## File Manifest (Phase 5)
+- src/app/page.tsx — MODIFIED — TunerControls, active glow, tips update, v3.0
+- src/components/tuner-gauge.tsx — MODIFIED — Fixed FM initial opacity
+- src/components/waveform-visualizer.tsx — REWRITTEN — Dual-mode viz
+- src/components/tuner-controls.tsx — NEW — A4 + sound + sparkline
+- src/components/reference-notes.tsx — MODIFIED — Octave selector, animations
+- src/components/note-history.tsx — MODIFIED — Freq, breathing, accuracy bar
+- src/components/metronome.tsx — MODIFIED — Tap tempo, pendulum
+- src/components/practice-mode.tsx — MODIFIED — Shuffle mode
+- src/hooks/use-persisted-state.ts — NEW — Generic localStorage hook
+
+## Verification
+- bun run lint: 0 errors, 0 warnings
+- Zero console errors on desktop and mobile
+- 55 interactive buttons on page
+- All new features verified via accessibility tree
+
+## Complete Feature List — 30 features total
+1-24: (same as Phase 4)
+25. A4 frequency calibration (420-460 Hz)
+26. Sound on/off toggle
+27. Cent trend sparkline
+28. Practice mode shuffle
+29. Active recording glow border
+30. Generic persisted state hook
+
+## Risks
+- A4 calibration UI exists but not yet wired to pitch-detection.ts (still hardcodes 440)
+- Sound toggle hook exists but not yet consumed by practice/interval components
+
+## Next Phase Priorities
+1. Wire A4 calibration to pitch detection
+2. Wire sound toggle to practice/interval
+3. PWA support
+4. Metronome + Tuner coexistence
+5. Practice scoring persistence

@@ -15,6 +15,7 @@ import {
   Volume2,
   ChevronLeft,
   ChevronRight,
+  Shuffle,
 } from 'lucide-react';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -89,6 +90,7 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
   const [noteResult, setNoteResult] = useState<'correct' | 'wrong' | null>(null);
   const [isPlayingRef, setIsPlayingRef] = useState(false);
   const [practiceOctave, setPracticeOctave] = useState(4);
+  const [shuffleMode, setShuffleMode] = useState(false);
   const detectedRef = useRef(false);
   const playRefRef = useRef<() => void>(() => {});
 
@@ -132,14 +134,21 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
 
       // Auto-advance after 1.5s
       const timeout = setTimeout(() => {
-        setTargetIndex((i) => (i + 1) % scale.length);
+        setTargetIndex((i) => {
+          if (shuffleMode) {
+            let next: number;
+            do { next = Math.floor(Math.random() * scale.length); } while (next === i && scale.length > 1);
+            return next;
+          }
+          return (i + 1) % scale.length;
+        });
         setNoteResult(null);
         detectedRef.current = false;
       }, 1500);
 
       return () => clearTimeout(timeout);
     }
-  }, [currentPitch, isActive, isPracticeMode, targetNote, config.threshold, scale.length]);
+  }, [currentPitch, isActive, isPracticeMode, targetNote, config.threshold, scale.length, shuffleMode]);
 
   const handlePlayReference = useCallback(() => {
     const stop = playNote(targetNote.frequency, 1.5);
@@ -154,8 +163,15 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
     setNoteResult(null);
     setAttemptCount((a) => a + 1);
     setStreak(0);
-    setTargetIndex((i) => (i + 1) % scale.length);
-  }, [scale.length]);
+    setTargetIndex((i) => {
+      if (shuffleMode) {
+        let next: number;
+        do { next = Math.floor(Math.random() * scale.length); } while (next === i && scale.length > 1);
+        return next;
+      }
+      return (i + 1) % scale.length;
+    });
+  }, [scale.length, shuffleMode]);
 
   const handlePrev = useCallback(() => {
     detectedRef.current = false;
@@ -205,9 +221,24 @@ export function PracticeMode({ currentPitch, isActive, onTargetChange, onStreakC
             <Target className="h-4 w-4 text-rose-500" />
             حالت تمرین
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => setIsPracticeMode(false)} className="h-7 text-xs text-muted-foreground">
-            بستن
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-7 w-7 p-0',
+                shuffleMode && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+              )}
+              onClick={() => setShuffleMode((s) => !s)}
+              aria-label={shuffleMode ? 'حالت عادی' : 'تصادفی'}
+              title={shuffleMode ? 'حالت عادی' : 'تصادفی'}
+            >
+              <Shuffle className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setIsPracticeMode(false)} className="h-7 text-xs text-muted-foreground">
+              بستن
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-4">

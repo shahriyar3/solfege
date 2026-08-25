@@ -25,6 +25,7 @@ function getCentsStyle(cents: number) {
 
 export function NoteHistory({ notes, stats }: NoteHistoryProps) {
   const reversedNotes = [...notes].reverse();
+  const nearLimit = notes.length > 80;
 
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -33,7 +34,12 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
         {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8 gap-3">
             <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
-              <Music className="h-6 w-6 opacity-30" />
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Music className="h-6 w-6 text-muted-foreground" />
+              </motion.div>
             </div>
             <p className="text-sm">هنوز نت‌ای ثبت نشده</p>
             <p className="text-xs opacity-50 text-center">روی میکروفون بزنید و شروع به سلفژ کنید</p>
@@ -58,19 +64,24 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
                         i === 0 ? 'bg-muted/60' : i % 2 === 1 ? 'bg-muted/20' : 'hover:bg-muted/30'
                       )}
                     >
-                      {/* Note name */}
-                      <div className="flex items-center gap-1.5 min-w-[70px]">
-                        <span className={cn('text-sm font-bold', style.color)}>
-                          {note.solfege}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {note.note}{note.octave}
+                      {/* Note name + frequency */}
+                      <div className="flex flex-col min-w-[70px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn('text-sm font-bold', style.color)}>
+                            {note.solfege}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {note.note}{note.octave}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight">
+                          {note.frequency.toFixed(1)} Hz
                         </span>
                       </div>
 
                       {/* Cents bar */}
                       <div className="flex-1 flex items-center">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full relative overflow-hidden" dir="ltr" style={{ height: '6px' }}>
+                        <div className="flex-1 bg-muted rounded-full relative overflow-hidden" dir="ltr" style={{ height: '6px' }}>
                           <div className="absolute top-0 left-1/2 w-px h-full bg-foreground/15" />
                           <div
                             className={cn(
@@ -102,6 +113,41 @@ export function NoteHistory({ notes, stats }: NoteHistoryProps) {
           </ScrollArea>
         )}
       </div>
+
+      {/* Bottom: accuracy bar + note count warning */}
+      {notes.length > 0 && (
+        <div className="flex flex-col gap-2 pt-1">
+          {/* Running accuracy bar */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <motion.div
+                className={cn(
+                  'h-full rounded-full',
+                  stats.accuracy >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
+                  stats.accuracy >= 50 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' :
+                  'bg-gradient-to-r from-red-400 to-red-500'
+                )}
+                animate={{ width: `${stats.accuracy}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono tabular-nums w-8 text-left">
+              {stats.accuracy}٪
+            </span>
+          </div>
+
+          {/* Note count limit warning */}
+          {nearLimit && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[10px] text-amber-500 dark:text-amber-400 text-center"
+            >
+              نزدیک به حداکثر
+            </motion.p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

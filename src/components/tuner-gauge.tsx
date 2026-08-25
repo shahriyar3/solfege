@@ -179,7 +179,7 @@ export function TunerGauge({
           />
 
           {/* ── Coloured arc segments (strokeDasharray technique) ── */}
-          <motion.g animate={{ opacity: isActive ? 0.88 : 0.2 }} transition={{ duration: 0.4 }}>
+          <motion.g initial={{ opacity: 0.2 }} animate={{ opacity: isActive ? 0.88 : 0.2 }} transition={{ duration: 0.4 }}>
             {ARC_SEGS.map((s, i) => (
               <path
                 key={i}

@@ -18,6 +18,7 @@ import { PerformanceChart } from '@/components/performance-chart';
 import { Metronome } from '@/components/metronome';
 import { PianoKeyboard } from '@/components/piano-keyboard';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { TunerControls } from '@/components/tuner-controls';
 import { SessionTimer } from '@/components/session-timer';
 import { Achievements } from '@/components/achievements';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ import {
   Music2,
   TrendingUp,
   Keyboard,
+  Settings2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -217,12 +219,20 @@ export default function Home() {
           {/* Left column: Tuner */}
           <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
             {/* Main tuner card */}
-            <Card className="overflow-hidden border border-border/40 shadow-xl shadow-black/[0.04] bg-card/90 backdrop-blur-sm card-hover">
+            <Card className={cn(
+              'overflow-hidden border bg-card/90 backdrop-blur-sm card-hover transition-all duration-500',
+              isActive
+                ? 'border-rose-500/40 shadow-xl shadow-rose-500/10'
+                : 'border-border/40 shadow-xl shadow-black/[0.04]'
+            )}>
               <CardContent className="p-5 sm:p-8">
-                {/* Session timer + keyboard hint row */}
+                {/* Top controls row: timer + tuner controls + keyboard hint */}
                 <div className="flex items-center justify-between mb-4">
                   <SessionTimer isActive={isActive} />
-                  <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                  <div className="hidden sm:block">
+                    <TunerControls centsHistory={noteHistory.map(n => n.cents)} />
+                  </div>
+                  <div className="hidden lg:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
                     <Keyboard className="h-3 w-3" />
                     <span>Space = میکروفون</span>
                   </div>
@@ -452,13 +462,13 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: '🎤', text: 'روی دکمه میکروفون بزنید و نت‌های سلفژ را بخوانید' },
-                  { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با سه سطح دشواری' },
+                  { icon: '🎯', text: 'حالت تمرین طبیعی یا کروماتیک با حالت تصادفی' },
                   { icon: '🎵', text: 'تمرین فاصله‌ها: سکوند، تیرس، کوارت، کوینت و...' },
                   { icon: '📊', text: 'نمودار عملکرد و خروجی CSV از تاریخچه تمرین' },
                   { icon: '🔔', text: 'شناسایی گستره صدای شما: سوپرانو، آلتو، تنور یا باس' },
-                  { icon: '⌨️', text: 'میانبر کیبورد: Space = میکروفون، کلیدهای جهت‌نما' },
-                  { icon: '🏆', text: 'دستاوردها: قفل‌گشایی بموقعی بر اساس پیشرفت شما' },
-                  { icon: '🌙', text: 'حالت تاریک/روشن از دکمه در هدر صفحه' },
+                  { icon: '⌨️', text: 'میانبر کیبورد: Space = میکروفون' },
+                  { icon: '🎹', text: 'نت‌های مرجع با انتخاب اکتاو و پخش صدا' },
+                  { icon: '🎛️', text: 'تنظیم فرکانس A4 (۴۲۰ تا ۴۶۰ هرتز) و خاموش/روشن صدا' },
                 ].map((tip, idx) => (
                   <div key={idx} className="flex gap-2.5 text-xs text-muted-foreground leading-relaxed">
                     <span className="text-base shrink-0">{tip.icon}</span>
@@ -478,7 +488,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline">تحلیل صدا به صورت ریل‌تایم</span>
             <span className="text-muted-foreground/40">|</span>
-            <span>نسخه ۲.۰</span>
+            <span>نسخه ۳.۰</span>
           </div>
         </div>
       </footer>

@@ -1,12 +1,11 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { playNote } from '@/lib/audio-playback';
-import { getSolfeggioScale } from '@/lib/audio-playback';
+import { playNote, getSolfeggioScale } from '@/lib/audio-playback';
 import { Music, Volume2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, LayoutGroup } from 'framer-motion';
 
 const NOTE_COLORS: Record<string, string> = {
   'C': 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200/60 dark:border-red-800/30',
@@ -26,23 +25,36 @@ const SHARP_COLORS: Record<string, string> = {
   'A#': 'bg-sky-50 text-sky-500 dark:bg-sky-950/20 dark:text-sky-400',
 };
 
+const SHARP_SOLFEGE: Record<string, string> = {
+  'C': 'دو#', 'D': 'رِ#', 'F': 'فا#', 'G': 'سل#', 'A': 'لا#',
+};
+
+const SHARP_NOTE_MAP = ['C', 'D', null, 'F', 'G', 'A', null] as const;
+
 interface ReferenceNotesProps {
   currentNote?: string | null;
 }
 
 export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
-  const scale = getSolfeggioScale(4);
+  const [refOctave, setRefOctave] = useState(4);
+  const [playingNote, setPlayingNote] = useState<string | null>(null);
 
-  const handlePlay = useCallback((freq: number) => {
+  const scale = getSolfeggioScale(refOctave);
+
+  const handlePlay = useCallback((freq: number, noteKey: string) => {
     playNote(freq, 1.0);
+    setPlayingNote(noteKey);
+    setTimeout(() => setPlayingNote(null), 600);
   }, []);
 
   return (
-    <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm">
+    <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover">
       <CardHeader className="pb-2 pt-4 px-4">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-bold">
-            <Music className="h-4 w-4 text-muted-foreground" />
+            <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+              <Music className="h-3.5 w-3.5 text-white" />
+            </div>
             نت‌های مرجع
           </div>
           <span className="text-[10px] text-muted-foreground font-normal flex items-center gap-1">
@@ -52,59 +64,98 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        {/* Natural notes */}
-        <div className="grid grid-cols-7 gap-2">
-          {scale.map((n) => {
-            const isActive = currentNote === n.note;
-            return (
-              <motion.button
-                key={n.note}
-                onClick={() => handlePlay(n.frequency)}
+        <LayoutGroup>
+          {/* Natural notes */}
+          <div className="grid grid-cols-7 gap-2">
+            {scale.map((n) => {
+              const isActive = currentNote === n.note;
+              const isPlaying = playingNote === `${n.note}-${refOctave}`;
+              return (
+                <motion.button
+                  key={n.note}
+                  layoutId={isActive ? 'active-note-highlight' : undefined}
+                  onClick={() => handlePlay(n.frequency, `${n.note}-${refOctave}`)}
+                  className={cn(
+                    'relative flex flex-col items-center py-2.5 px-1 rounded-xl border text-center transition-all duration-200 cursor-pointer',
+                    NOTE_COLORS[n.note],
+                    isActive && 'ring-2 ring-foreground/30 scale-110 shadow-lg'
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {isPlaying && (
+                    <motion.span
+                      className="absolute inset-0 rounded-xl ring-2 ring-current opacity-60"
+                      initial={{ scale: 0.9, opacity: 0.8 }}
+                      animate={{ scale: 1.1, opacity: 0 }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  )}
+                  <span className="text-lg font-extrabold leading-tight">{n.solfege}</span>
+                  <span className="text-[10px] opacity-60 font-mono">{n.note}{refOctave}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+          {/* Sharp notes */}
+          <div className="grid grid-cols-7 gap-2 mt-2">
+            {SHARP_NOTE_MAP.map((base, i) => {
+              if (!base) {
+                return <div key={`empty-${i}`} className="opacity-0 pointer-events-none" />;
+              }
+              const sharpNote = `${base}#`;
+              const scaleIdx = scale.findIndex(s => s.note === base);
+              const freq = scaleIdx >= 0 ? scale[scaleIdx].frequency * Math.pow(2, 1 / 12) : 0;
+              const isActive = currentNote === sharpNote;
+              const isPlaying = playingNote === `${sharpNote}-${refOctave}`;
+              return (
+                <motion.button
+                  key={sharpNote}
+                  layoutId={isActive ? 'active-sharp-highlight' : undefined}
+                  onClick={() => handlePlay(freq, `${sharpNote}-${refOctave}`)}
+                  className={cn(
+                    'relative flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200 cursor-pointer border border-transparent',
+                    SHARP_COLORS[sharpNote] || 'bg-muted/30 text-muted-foreground',
+                    isActive && 'ring-2 ring-foreground/20 bg-muted'
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {isPlaying && (
+                    <motion.span
+                      className="absolute inset-0 rounded-lg ring-2 ring-current opacity-60"
+                      initial={{ scale: 0.9, opacity: 0.8 }}
+                      animate={{ scale: 1.1, opacity: 0 }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  )}
+                  <span className="font-medium">{SHARP_SOLFEGE[base]}</span>
+                  <span className="font-mono text-[10px] opacity-60">{sharpNote}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </LayoutGroup>
+
+        {/* Octave selector */}
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <span className="text-xs text-muted-foreground">اکتاو:</span>
+          <div className="flex gap-1">
+            {[3, 4, 5].map((oct) => (
+              <button
+                key={oct}
+                onClick={() => setRefOctave(oct)}
                 className={cn(
-                  'flex flex-col items-center py-2.5 px-1 rounded-xl border text-center transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95',
-                  NOTE_COLORS[n.note],
-                  isActive && 'ring-2 ring-foreground/30 scale-110 shadow-lg'
+                  'h-7 w-9 rounded-md text-xs font-medium transition-all',
+                  refOctave === oct
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                 )}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
-                <span className="text-lg font-extrabold leading-tight">{n.solfege}</span>
-                <span className="text-[10px] opacity-60 font-mono">{n.note}4</span>
-              </motion.button>
-            );
-          })}
-        </div>
-        {/* Sharp notes */}
-        <div className="grid grid-cols-7 gap-2 mt-2">
-          {[
-            { note: 'C#', solfege: 'دو#', freq: scale[0].frequency * Math.pow(2, 1/12) },
-            { note: 'D#', solfege: 'رِ#', freq: scale[1].frequency * Math.pow(2, 1/12) },
-            { note: null, solfege: '', freq: 0 },
-            { note: 'F#', solfege: 'فا#', freq: scale[3].frequency * Math.pow(2, 1/12) },
-            { note: 'G#', solfege: 'سل#', freq: scale[4].frequency * Math.pow(2, 1/12) },
-            { note: 'A#', solfege: 'لا#', freq: scale[5].frequency * Math.pow(2, 1/12) },
-            { note: null, solfege: '', freq: 0 },
-          ].map((n, i) => (
-            <motion.div
-              key={n.note || `empty-${i}`}
-              className={cn(
-                'flex flex-col items-center py-1.5 px-1 rounded-lg text-center text-[11px] transition-all duration-200',
-                n.note
-                  ? cn(
-                      SHARP_COLORS[n.note] || 'bg-muted/30 text-muted-foreground',
-                      'cursor-pointer hover:scale-105 active:scale-95 border border-transparent',
-                      currentNote === n.note && 'ring-2 ring-foreground/20 bg-muted'
-                    )
-                  : 'opacity-0 pointer-events-none'
-              )}
-              onClick={() => n.note && handlePlay(n.freq)}
-              whileHover={n.note ? { scale: 1.05 } : undefined}
-              whileTap={n.note ? { scale: 0.95 } : undefined}
-            >
-              {n.solfege && <span className="font-medium">{n.solfege}</span>}
-              {n.note && <span className="font-mono text-[10px] opacity-60">{n.note}</span>}
-            </motion.div>
-          ))}
+                {oct}
+              </button>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
