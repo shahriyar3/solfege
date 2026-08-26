@@ -1601,3 +1601,32 @@ Stage Summary:
 - Beginner-friendly descriptions for every exercise
 - Modified files: src/components/warmup-module.tsx
 - Browser verified: all 10 exercises render, descriptions toggle, speed controls appear for trill/vocal-run, no errors
+---
+Task ID: audio-fix-sync
+Agent: Main
+Task: Fix all sounds not playing after last change
+
+Work Log:
+- Diagnosed root cause: async/await in playNote/playClick/etc created a microtask gap that broke AudioContext in iframe/sandboxed environments. The user gesture context was lost between the click and the oscillator scheduling.
+- Rewrote audio-playback.ts: ALL play functions are now synchronous (no async/await). AudioContext management uses fire-and-forget resume() instead of awaiting.
+- Updated all callers (note-quiz, practice-mode, interval-trainer, warmup-module, scale-patterns) to remove unnecessary await keywords.
+- Added console.error/console.warn logging to AudioContext creation and resume failures.
+- Added "Reset Audio" button in Settings Drawer for manual recovery (calls resetAudioContexts + plays test note).
+- Verified warmup trill timing is fixed (note name displays synchronously before sound).
+- Verified warmup circle animation is correct (circle stays, only text swaps).
+
+Stage Summary:
+- Core fix: audio-playback.ts — synchronous AudioContext management
+- 5 caller files updated to remove async/await
+- Settings drawer now has audio reset button
+- All 10 warmup exercises already existed with detailed descriptions
+- No lint errors, browser verified
+
+Modified files:
+- src/lib/audio-playback.ts (major rewrite - sync context management)
+- src/components/note-quiz.tsx (removed async/await)
+- src/components/practice-mode.tsx (removed async/await)
+- src/components/interval-trainer.tsx (removed async/await)
+- src/components/warmup-module.tsx (removed async/await)
+- src/components/scale-patterns.tsx (removed async/await)
+- src/components/settings-drawer.tsx (added audio reset button)

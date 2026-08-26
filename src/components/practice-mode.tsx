@@ -152,8 +152,8 @@ export function PracticeMode({ currentPitch, isActive, soundEnabled = true, onTa
     }
   }, [currentPitch, isActive, isPracticeMode, targetNote, config.threshold, scale.length, shuffleMode]);
 
-  const handlePlayReference = useCallback(async () => {
-    const handle = await playNote(targetNote.frequency, 1.5);
+  const handlePlayReference = useCallback(() => {
+    const handle = playNote(targetNote.frequency, 1.5);
     playRefRef.current = handle.stop;
     setIsPlayingRef(true);
     setTimeout(() => setIsPlayingRef(false), 1500);

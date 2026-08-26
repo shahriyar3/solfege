@@ -2,10 +2,11 @@
  * Audio playback utilities using Web Audio API.
  * Generates reference tones for musical notes.
  *
- * IMPORTANT: All play functions are async and return Promise<{stop}>
- * because AudioContext.resume() is async. Most callers can simply
- * call without await (fire-and-forget). Only warmup/sequential players
- * need to await to get the stop handle for chaining.
+ * All play functions are SYNCHRONOUS — they schedule audio immediately
+ * during the user-gesture call stack, avoiding async gaps that can
+ * break AudioContext in iframes / sandboxed environments.
+ * Callers that previously awaited the return value can still do so
+ * (the PlayHandle is returned directly, not wrapped in a Promise).
  */
 
 const A4_FREQUENCY = 440.0;
@@ -79,78 +80,89 @@ export function getSolfeggioScale(baseOctave: number = 4): NoteInfo[] {
   });
 }
 
-// ─── Robust Async AudioContext Management ────────────────────────
+// ─── Robust Synchronous AudioContext Management ──────────────────
 //
-// AudioContext.start() may be 'suspended' in iframe environments or
-// after HMR. The only reliable way to get a running context is to
-// create it and AWAIT resume(). All play functions are therefore async.
+// AudioContext may start in 'suspended' state (autoplay policy, iframes,
+// after HMR).  We use a SYNCHRONOUS create‑then‑resume pattern so that
+// oscillators are scheduled while the user gesture is still active.
+// resume() is fire‑and‑forget — scheduled nodes will play the moment
+// the context transitions to 'running'.
 
 let sharedCtx: AudioContext | null = null;
 
-async function getSharedContext(): Promise<AudioContext> {
+function getSharedContext(): AudioContext {
   // Fast path: context exists and is running
   if (sharedCtx && sharedCtx.state === 'running') {
     return sharedCtx;
   }
 
-  // Context exists but is not running — try to resume
+  // Context exists but is not running — try to resume (fire‑and‑forget)
   if (sharedCtx && sharedCtx.state !== 'closed') {
-    try {
-      await sharedCtx.resume();
-      // Re-check after async resume (state may have changed)
-      if ((sharedCtx as AudioContext).state === 'running') return sharedCtx;
-    } catch {
-      // Resume failed — recreate
-    }
+    try { sharedCtx.resume(); } catch { /* */ }
+    // Return it even if suspended; scheduled nodes will play on resume
+    return sharedCtx;
   }
 
   // Close any stale context
   if (sharedCtx) {
-    try { sharedCtx.close(); } catch (_e) { /* */ }
+    try { sharedCtx.close(); } catch { /* */ }
     sharedCtx = null;
   }
 
   // Create fresh context
-  sharedCtx = new AudioContext();
-  if (sharedCtx.state === 'suspended') {
-    await sharedCtx.resume();
+  try {
+    sharedCtx = new AudioContext();
+  } catch (e) {
+    console.error('[audio-playback] Failed to create AudioContext:', e);
+    // Return a dummy‑like object so callers degrade gracefully
+    return null as unknown as AudioContext;
   }
-  return sharedCtx;
+
+  if (sharedCtx!.state === 'suspended') {
+    // Fire‑and‑forget resume — preserves user‑gesture context
+    sharedCtx!.resume().catch(() => {
+      console.warn('[audio-playback] sharedCtx resume() rejected');
+    });
+  }
+  return sharedCtx!;
 }
 
 let feedbackCtx: AudioContext | null = null;
 
-async function getFeedbackContext(): Promise<AudioContext> {
+function getFeedbackContext(): AudioContext {
   if (feedbackCtx && feedbackCtx.state === 'running') {
     return feedbackCtx;
   }
   if (feedbackCtx && feedbackCtx.state !== 'closed') {
-    try {
-      await feedbackCtx.resume();
-      if ((feedbackCtx as AudioContext).state === 'running') return feedbackCtx;
-    } catch {
-      /* */
-    }
+    try { feedbackCtx.resume(); } catch { /* */ }
+    return feedbackCtx;
   }
   if (feedbackCtx) {
-    try { feedbackCtx.close(); } catch (_e) { /* */ }
+    try { feedbackCtx.close(); } catch { /* */ }
     feedbackCtx = null;
   }
-  feedbackCtx = new AudioContext();
-  if (feedbackCtx.state === 'suspended') {
-    await feedbackCtx.resume();
+  try {
+    feedbackCtx = new AudioContext();
+  } catch (e) {
+    console.error('[audio-playback] Failed to create feedback AudioContext:', e);
+    return null as unknown as AudioContext;
   }
-  return feedbackCtx;
+  if (feedbackCtx!.state === 'suspended') {
+    feedbackCtx!.resume().catch(() => {
+      console.warn('[audio-playback] feedbackCtx resume() rejected');
+    });
+  }
+  return feedbackCtx!;
 }
 
 /** Force-reset all audio contexts (useful for recovery) */
 export function resetAudioContexts(): void {
   if (sharedCtx) {
-    try { sharedCtx.close(); } catch (_e) { /* */ }
+    try { sharedCtx.close(); } catch { /* */ }
     sharedCtx = null;
   }
   if (feedbackCtx) {
-    try { feedbackCtx.close(); } catch (_e) { /* */ }
+    try { feedbackCtx.close(); } catch { /* */ }
     feedbackCtx = null;
   }
 }
@@ -159,21 +171,21 @@ export function resetAudioContexts(): void {
  *  Call this from a user-gesture handler (click/tap) BEFORE
  *  scheduling any audio that will play later via setTimeout/setInterval.
  *  Returns true if the context is (or will be) running. */
-export async function ensureAudioReady(): Promise<boolean> {
+export function ensureAudioReady(): boolean {
   try {
-    const ctx = await getSharedContext();
-    return ctx.state === 'running';
+    const ctx = getSharedContext();
+    return ctx.state === 'running' || ctx.state === 'suspended';
   } catch {
     return false;
   }
 }
 
-// ─── Sound Playback Functions (all async) ────────────────────────
+// ─── Sound Playback Functions ──────────────────────────────────
 
 /** Play a note using Web Audio oscillator */
-export async function playNote(frequency: number, duration: number = 1.0): Promise<PlayHandle> {
+export function playNote(frequency: number, duration: number = 1.0): PlayHandle {
   try {
-    const ctx = await getSharedContext();
+    const ctx = getSharedContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -210,9 +222,9 @@ export async function playNote(frequency: number, duration: number = 1.0): Promi
 }
 
 /** Play a metronome click */
-export async function playClick(frequency: number = 1000, duration: number = 0.05): Promise<PlayHandle> {
+export function playClick(frequency: number = 1000, duration: number = 0.05): PlayHandle {
   try {
-    const ctx = await getSharedContext();
+    const ctx = getSharedContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -239,9 +251,9 @@ export async function playClick(frequency: number = 1000, duration: number = 0.0
 }
 
 /** Play a pleasant chime sound for correct answer feedback */
-export async function playCorrectChime(): Promise<PlayHandle> {
+export function playCorrectChime(): PlayHandle {
   try {
-    const ctx = await getSharedContext();
+    const ctx = getSharedContext();
     const now = ctx.currentTime;
 
     const freqs = [523.25, 659.25];
@@ -275,9 +287,9 @@ export async function playCorrectChime(): Promise<PlayHandle> {
 }
 
 /** Play a pleasant ascending two-note chime for correct answer */
-export async function playCorrectSound(): Promise<PlayHandle> {
+export function playCorrectSound(): PlayHandle {
   try {
-    const ctx = await getFeedbackContext();
+    const ctx = getFeedbackContext();
     const now = ctx.currentTime;
     const freqs = [523.25, 659.25];
     const noteDuration = 0.2;
@@ -316,9 +328,9 @@ export async function playCorrectSound(): Promise<PlayHandle> {
 }
 
 /** Play a short low buzzy sound for wrong answer feedback */
-export async function playWrongSound(): Promise<PlayHandle> {
+export function playWrongSound(): PlayHandle {
   try {
-    const ctx = await getFeedbackContext();
+    const ctx = getFeedbackContext();
     const now = ctx.currentTime;
     const duration = 0.3;
     const osc = ctx.createOscillator();
@@ -346,9 +358,9 @@ export async function playWrongSound(): Promise<PlayHandle> {
 }
 
 /** Play a subtle buzz for wrong answer feedback */
-export async function playWrongBuzz(): Promise<PlayHandle> {
+export function playWrongBuzz(): PlayHandle {
   try {
-    const ctx = await getSharedContext();
+    const ctx = getSharedContext();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     osc.type = 'sawtooth';

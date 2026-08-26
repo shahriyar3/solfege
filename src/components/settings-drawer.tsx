@@ -16,6 +16,7 @@ import { useA4Freq, useSoundEnabled } from '@/components/tuner-controls';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { resetAudioContexts, playNote } from '@/lib/audio-playback';
 import {
   Minus,
   Plus,
@@ -25,6 +26,7 @@ import {
   Keyboard,
   Target,
   Waves,
+  Speaker,
 } from 'lucide-react';
 
 function toPersianNum(n: number): string {
@@ -55,6 +57,12 @@ export function SettingsDrawer({ open, onOpenChange }: SettingsDrawerProps) {
     setSoundEnabled(true);
     setAccuracyThreshold(10);
   }, [setA4Freq, setSoundEnabled, setAccuracyThreshold]);
+
+  const handleResetAudio = useCallback(() => {
+    resetAudioContexts();
+    // Immediately create a fresh context and play a test note
+    playNote(440, 0.5);
+  }, []);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} dir="rtl">
@@ -242,6 +250,29 @@ export function SettingsDrawer({ open, onOpenChange }: SettingsDrawerProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
+          >
+            <SettingsSection
+              title="عادی‌سازی صدا"
+              description="اگر صدایی پخش نمی‌شود، این دکمه را بزنید"
+              icon={<Speaker className="h-3.5 w-3.5" />}
+            >
+              <Button
+                variant="outline"
+                className="w-full gap-2 text-sm border-amber-200 dark:border-amber-800/40 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                onClick={handleResetAudio}
+              >
+                <Speaker className="h-4 w-4" />
+                بازنشانی صدای نت‌ها
+              </Button>
+            </SettingsSection>
+          </motion.div>
+
+          <Separator className="bg-border/20" />
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
           >
             <Button
               variant="outline"

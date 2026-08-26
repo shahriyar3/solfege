@@ -429,14 +429,14 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
 
   // Play a single step: update note name INSTANTLY, then play sound
   const playStepFn = useCallback(
-    async (stepIndex: number) => {
+    (stepIndex: number) => {
       if (stepIndex >= steps.length) {
         stopAll();
         return;
       }
 
       const step = steps[stepIndex];
-      // Update note display IMMEDIATELY — before any async work
+      // Update note display IMMEDIATELY — before any work
       setCurrentStep(stepIndex);
 
       if (soundEnabled) {
@@ -444,7 +444,7 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
           stopRef.current();
           stopRef.current = null;
         }
-        const handle = await playNote(step.frequency, step.duration);
+        const handle = playNote(step.frequency, step.duration);
         stopRef.current = handle.stop;
       }
 

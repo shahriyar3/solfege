@@ -210,8 +210,8 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     }
   }, [currentPitch, isActive, tMidi]);
 
-  const playRootNote = useCallback(async (freq: number) => {
-    const handle = await playNote(freq, 1.2);
+  const playRootNote = useCallback((freq: number) => {
+    const handle = playNote(freq, 1.2);
     setPlayingRoot(true);
     setTimeout(() => { setPlayingRoot(false); handle.stop(); }, 1300);
   }, []);
@@ -281,9 +281,9 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     setBest(0);
   }, []);
 
-  const playTargetNote = useCallback(async () => {
+  const playTargetNote = useCallback(() => {
     if (!target) return;
-    const handle = await playNote(target.frequency, 1.2);
+    const handle = playNote(target.frequency, 1.2);
     setPlayingTarget(true);
     setTimeout(() => { setPlayingTarget(false); handle.stop(); }, 1300);
   }, [target]);
