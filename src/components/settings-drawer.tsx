@@ -16,7 +16,7 @@ import { useA4Freq, useSoundEnabled } from '@/components/tuner-controls';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { resetAudioContexts, playNote } from '@/lib/audio-playback';
+import { resetAudioContexts, playNote, ensureAudioResumed } from '@/lib/audio-playback';
 import {
   Minus,
   Plus,
@@ -58,8 +58,10 @@ export function SettingsDrawer({ open, onOpenChange }: SettingsDrawerProps) {
     setAccuracyThreshold(10);
   }, [setA4Freq, setSoundEnabled, setAccuracyThreshold]);
 
-  const handleResetAudio = useCallback(() => {
+  const handleResetAudio = useCallback(async () => {
     resetAudioContexts();
+    // Resume AudioContext during user-gesture context (required by sandboxed iframes)
+    try { await ensureAudioResumed(); } catch { /* */ }
     // Immediately create a fresh context and play a test note
     playNote(440, 0.5);
   }, []);

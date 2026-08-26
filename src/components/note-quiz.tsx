@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getSolfeggioScale, playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+import { getSolfeggioScale, playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -94,8 +94,9 @@ export function NoteQuiz({ soundEnabled = true }: NoteQuizProps) {
     setSelected(null);
   }, [scale]);
 
-  const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(async () => {
     if (!soundEnabled || !currentNote) return;
+    try { await ensureAudioResumed(); } catch { /* */ }
     const handle = playNote(currentNote.frequency, 1.5);
     setIsPlaying(true);
     setHasPlayed(true);
@@ -106,8 +107,9 @@ export function NoteQuiz({ soundEnabled = true }: NoteQuizProps) {
   }, [currentNote, soundEnabled]);
 
   const handleChoice = useCallback(
-    (choice: Choice) => {
+    async (choice: Choice) => {
       if (selected || !hasPlayed) return;
+      try { await ensureAudioResumed(); } catch { /* */ }
       setSelected(choice);
       setAttempts((a) => a + 1);
       if (choice.isCorrect) {

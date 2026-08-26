@@ -1630,3 +1630,29 @@ Modified files:
 - src/components/warmup-module.tsx (removed async/await)
 - src/components/scale-patterns.tsx (removed async/await)
 - src/components/settings-drawer.tsx (added audio reset button)
+---
+Task ID: audio-fix-warmup
+Agent: Main
+Task: Fix metronome/audio regression and warmup trill timing
+
+Work Log:
+- Investigated audio regression: AudioContext.resume() was being called in useEffect (not user-gesture context), causing all audio to fail in sandboxed iframe environments
+- Created ensureAudioResumed() async function in audio-playback.ts that properly awaits AudioContext.resume() from user-gesture handlers
+- Fixed metronome.tsx: moved AudioContext resume to async start() handler in user-gesture context, plays first beat immediately
+- Fixed warmup-module.tsx: updated handlePlay to async with ensureAudioResumed()
+- Fixed reference-notes.tsx: updated handlePlay to async with ensureAudioResumed()
+- Fixed interval-trainer.tsx: updated playRootNote, reveal, playTargetNote to async with ensureAudioResumed()
+- Fixed note-quiz.tsx: updated handlePlay, handleChoice to async with ensureAudioResumed()
+- Fixed scale-patterns.tsx: updated handleChoice to async with ensureAudioResumed()
+- Fixed practice-mode.tsx: updated handlePlayReference, handleNext to async with ensureAudioResumed()
+- Fixed settings-drawer.tsx: updated handleResetAudio to async with ensureAudioResumed()
+- Fixed single-note-practice.tsx: updated handlePlayReference to async with ensureAudioResumed()
+- Fixed warmup trill timing: added 50ms delay between setCurrentStep and playNote so note name renders before sound starts
+- Verified all fixes via agent-browser: metronome plays, reference notes play, warmup module plays, note quiz plays, no console errors
+- Verified mobile responsive layout
+
+Stage Summary:
+- Root cause: AudioContext created in suspended state; resume() must be called from user gesture and awaited
+- Created ensureAudioResumed() as the canonical solution for all components
+- All 10 warmup exercises confirmed working with proper note-before-sound timing
+- No regressions introduced

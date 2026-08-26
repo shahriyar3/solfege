@@ -180,6 +180,17 @@ export function ensureAudioReady(): boolean {
   }
 }
 
+/** Get a reference to the shared AudioContext and ensure it is resumed.
+ *  Unlike ensureAudioReady(), this actually awaits the resume Promise.
+ *  Must be called from a user-gesture handler for best results. */
+export async function ensureAudioResumed(): Promise<AudioContext> {
+  const ctx = getSharedContext();
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  return ctx;
+}
+
 // ─── Sound Playback Functions ──────────────────────────────────
 
 /** Play a note using Web Audio oscillator */

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+import { playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic,
@@ -312,7 +312,8 @@ export function SingleNotePractice({
     setStats({ total: 0, correct: 0, streak: 0, bestStreak: 0 });
   }, []);
 
-  const handlePlayReference = useCallback(() => {
+  const handlePlayReference = useCallback(async () => {
+    try { await ensureAudioResumed(); } catch { /* */ }
     playNote(targetFreq, 1.5);
   }, [targetFreq]);
 

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getSolfeggioScale, getChromaticScale, playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+import { getSolfeggioScale, getChromaticScale, playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
 import type { PitchResult } from '@/lib/pitch-detection';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -152,14 +152,16 @@ export function PracticeMode({ currentPitch, isActive, soundEnabled = true, onTa
     }
   }, [currentPitch, isActive, isPracticeMode, targetNote, config.threshold, scale.length, shuffleMode]);
 
-  const handlePlayReference = useCallback(() => {
+  const handlePlayReference = useCallback(async () => {
+    try { await ensureAudioResumed(); } catch { /* */ }
     const handle = playNote(targetNote.frequency, 1.5);
     playRefRef.current = handle.stop;
     setIsPlayingRef(true);
     setTimeout(() => setIsPlayingRef(false), 1500);
   }, [targetNote.frequency]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
+    try { await ensureAudioResumed(); } catch { /* */ }
     if (soundEnabled) playWrongSound();
     detectedRef.current = false;
     setNoteResult(null);

@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { playNote, getSolfeggioScale } from '@/lib/audio-playback';
+import { playNote, getSolfeggioScale, ensureAudioResumed } from '@/lib/audio-playback';
 import { Music, Volume2 } from 'lucide-react';
 import { motion, LayoutGroup } from 'framer-motion';
 
@@ -43,7 +43,8 @@ export function ReferenceNotes({ currentNote }: ReferenceNotesProps) {
 
   const scale = getSolfeggioScale(refOctave);
 
-  const handlePlay = useCallback((freq: number, noteKey: string) => {
+  const handlePlay = useCallback(async (freq: number, noteKey: string) => {
+    try { await ensureAudioResumed(); } catch { /* */ }
     playNote(freq, 1.0);
     setPlayingNote(noteKey);
     setRippleKey(k => k + 1);

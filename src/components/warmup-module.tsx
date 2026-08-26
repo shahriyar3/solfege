@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { playNote, getSolfeggioScale, ensureAudioReady } from '@/lib/audio-playback';
+import { playNote, getSolfeggioScale, ensureAudioResumed } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -427,7 +427,8 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
     setCurrentStep(-1);
   }, []);
 
-  // Play a single step: update note name INSTANTLY, then play sound
+  // Play a single step: update note name INSTANTLY, then play sound after a tiny delay
+  // so the visual update (note name) appears before the audio starts
   const playStepFn = useCallback(
     (stepIndex: number) => {
       if (stepIndex >= steps.length) {
@@ -444,23 +445,43 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
           stopRef.current();
           stopRef.current = null;
         }
-        const handle = playNote(step.frequency, step.duration);
-        stopRef.current = handle.stop;
-      }
+        // Small delay so React re-renders the note name BEFORE sound starts
+        timerRef.current = setTimeout(() => {
+          const handle = playNote(step.frequency, step.duration);
+          stopRef.current = handle.stop;
 
-      // Determine delay before next step
-      let delay: number;
-      if (currentExerciseDef.hasSpeedControl) {
-        delay = SPEED_CONFIG[speed].ms;
-      } else if (activeExercise === 'sustain') {
-        delay = step.duration * 1000 + 400;
+          // Determine delay before next step
+          let delay: number;
+          if (currentExerciseDef.hasSpeedControl) {
+            delay = SPEED_CONFIG[speed].ms;
+          } else if (activeExercise === 'sustain') {
+            delay = step.duration * 1000 + 400;
+          } else {
+            delay = step.duration * 1000 + 200;
+          }
+
+          // Subtract the 50ms we already waited
+          const remainingDelay = Math.max(50, delay - 50);
+
+          timerRef.current = setTimeout(() => {
+            playStepRef.current(stepIndex + 1);
+          }, remainingDelay);
+        }, 50);
       } else {
-        delay = step.duration * 1000 + 200;
-      }
+        // No sound — just advance by the visual delay
+        let delay: number;
+        if (currentExerciseDef.hasSpeedControl) {
+          delay = SPEED_CONFIG[speed].ms;
+        } else if (activeExercise === 'sustain') {
+          delay = step.duration * 1000 + 400;
+        } else {
+          delay = step.duration * 1000 + 200;
+        }
 
-      timerRef.current = setTimeout(() => {
-        playStepRef.current(stepIndex + 1);
-      }, delay);
+        timerRef.current = setTimeout(() => {
+          playStepRef.current(stepIndex + 1);
+        }, delay);
+      }
     },
     [steps, soundEnabled, activeExercise, speed, stopAll, currentExerciseDef.hasSpeedControl],
   );
@@ -469,12 +490,12 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
     playStepRef.current = playStepFn;
   }, [playStepFn]);
 
-  const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(async () => {
     if (isPlaying) {
       stopAll();
       return;
     }
-    ensureAudioReady();
+    try { await ensureAudioResumed(); } catch { /* */ }
     setIsPlaying(true);
     setCurrentStep(0);
     playStepRef.current(0);

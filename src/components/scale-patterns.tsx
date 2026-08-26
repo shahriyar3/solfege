@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { playNote, playCorrectSound, playWrongSound } from '@/lib/audio-playback';
+import { playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
 import { SCALES, getScaleFrequencies } from '@/lib/scale-patterns';
 import type { ScaleDefinition } from '@/lib/scale-patterns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -125,8 +125,9 @@ export function ScalePatterns({ soundEnabled = true }: ScalePatternsProps) {
   }, [soundEnabled, currentScale, isPlaying, octave, stopAllPlayback]);
 
   const handleChoice = useCallback(
-    (scale: ScaleDefinition) => {
+    async (scale: ScaleDefinition) => {
       if (selected || !hasPlayed || isPlaying) return;
+      try { await ensureAudioResumed(); } catch { /* */ }
       setSelected(scale);
       setAttempts((a) => a + 1);
       if (scale.id === currentScale?.id) {
