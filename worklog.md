@@ -1570,3 +1570,34 @@ Stage Summary:
 - New files: src/components/microphone-test.tsx
 - Modified files: src/components/single-note-practice.tsx, src/app/page.tsx
 - Browser verified: both components render correctly, no console errors
+---
+Task ID: warmup-enhancement
+Agent: Main
+Task: Fix note display timing, add 10 warmup exercises with descriptions
+
+Work Log:
+- Fixed timing issue: Removed AnimatePresence wrapper around the circle. Now the circle stays visible at all times and only the text inside changes instantly (via React key swap without exit/enter animations).
+- Moved setCurrentStep() call BEFORE the async playNote() call so the note name appears instantly before sound starts.
+- Expanded from 4 exercises to 10:
+  1. صعودی (Ascending) - C4 to C5
+  2. نزولی (Descending) - C5 to C4
+  3. تریل (Trill) - C-D, D-E, E-F rapid alternation
+  4. سرج (Sustain) - Long held notes
+  5. پل اکتاو (Octave Bridge) - Jump between octaves 3/4/5
+  6. آرپژ (Arpeggio) - C/F/G major + A minor arpeggios
+  7. فاصله‌جویی (Interval Leaps) - Third jumps (C-E, D-F...)
+  8. تثلیث (Triads) - C/D/F major/minor triads
+  9. گریز صوتی (Vocal Run) - Fast ascending then descending
+  10. ثبات مرکزی (Center Stability) - Return to center G repeatedly
+- Added detailed Persian description for each exercise explaining what it does, how to practice, and tips for beginners
+- Added collapsible description panel (راهنمای تمرین) that shows/hides with animation
+- Added scrollable exercise selector row for 10 exercises
+- Added speed control support for trill and vocal run exercises
+- Progress dots auto-shrink when exercise has > 15 steps
+
+Stage Summary:
+- Key timing fix: circle stays, only text swaps — no more fade-out/fade-in delay
+- 10 diverse exercises covering: scales, trills, sustain, octave jumps, arpeggios, intervals, triads, vocal runs, stability
+- Beginner-friendly descriptions for every exercise
+- Modified files: src/components/warmup-module.tsx
+- Browser verified: all 10 exercises render, descriptions toggle, speed controls appear for trill/vocal-run, no errors
