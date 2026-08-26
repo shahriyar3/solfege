@@ -32,6 +32,7 @@ import { Achievements } from '@/components/achievements';
 import { NoteParticles } from '@/components/note-particles';
 import { DailyStreak, type DailyStreakHandle } from '@/components/daily-streak';
 import { SingleNotePractice } from '@/components/single-note-practice';
+import { MicrophoneTest } from '@/components/microphone-test';
 import { playNote } from '@/lib/audio-playback';
 import { cn } from '@/lib/utils';
 import {
@@ -427,7 +428,16 @@ export default function Home() {
             <DailyStreak ref={streakRef} />
 
             {/* Single note practice */}
-            <SingleNotePractice />
+            <SingleNotePractice
+              currentPitch={currentPitch}
+              isTunerActive={isActive}
+              volume={volume}
+              soundEnabled={soundEnabled}
+              onStartTuner={start}
+            />
+
+            {/* Microphone test */}
+            <MicrophoneTest />
 
             {/* Stats card */}
             <Card className="border border-border/40 shadow-lg shadow-black/[0.03] bg-card/90 backdrop-blur-sm card-hover overflow-hidden">

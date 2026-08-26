@@ -1547,3 +1547,26 @@ Stage Summary:
 - All 10+ components that use audio have been updated
 - AudioContext now properly awaits resume() before scheduling any oscillators
 - This fixes: metronome stopping after 1 cycle, piano keyboard no sound, warmup last notes silent, ALL audio broken in iframe environments
+---
+Task ID: fix-single-note-mic
+Agent: Main
+Task: Fix single-note practice "no sound heard" bug, improve wrong-octave feedback, add mic test feature
+
+Work Log:
+- Investigated root cause: SingleNotePractice created its own AudioContext + getUserMedia, conflicting with main tuner's active mic stream. On macOS, second stream was dead/silent.
+- Rewrote single-note-practice.tsx to accept currentPitch, isTunerActive, volume props from main tuner instead of creating separate audio pipeline
+- Changed evaluation to collect pitch samples from main tuner during recording, find most common detection, and evaluate against target
+- Added detailed wrong-octave feedback: shows which octave was detected, how many octaves off, direction (higher/lower), and guidance (sing lower/higher)
+- Added wrong-note feedback with target vs detected note details
+- Added no-sound feedback with troubleshooting tips
+- Added real-time volume bar during recording
+- Auto-starts main tuner if not active when user clicks Start
+- Created new microphone-test.tsx component: 5-second test, real-time volume meter, quality assessment (excellent/good/fair/poor), metrics (avg volume, peak, noise floor, SNR), tips
+- Updated page.tsx to pass props to SingleNotePractice and add MicrophoneTest component
+- Fixed all lint errors (conditional hook, setState in effect, ref access during render)
+
+Stage Summary:
+- Root cause of "no sound heard" bug: dual getUserMedia conflict → fixed by reusing main tuner data
+- New files: src/components/microphone-test.tsx
+- Modified files: src/components/single-note-practice.tsx, src/app/page.tsx
+- Browser verified: both components render correctly, no console errors
