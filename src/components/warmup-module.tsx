@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { playNote, getSolfeggioScale, ensureAudioResumed } from '@/lib/audio-playback';
+import { playNote, getSolfeggioScale, ensureAudioReady } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -490,12 +490,12 @@ export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
     playStepRef.current = playStepFn;
   }, [playStepFn]);
 
-  const handlePlay = useCallback(async () => {
+  const handlePlay = useCallback(() => {
     if (isPlaying) {
       stopAll();
       return;
     }
-    try { await ensureAudioResumed(); } catch { /* */ }
+    ensureAudioReady();
     setIsPlaying(true);
     setCurrentStep(0);
     playStepRef.current(0);

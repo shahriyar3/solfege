@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getSolfeggioScale, playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
+import { getSolfeggioScale, playNote, playCorrectSound, playWrongSound, ensureAudioReady } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -94,9 +94,9 @@ export function NoteQuiz({ soundEnabled = true }: NoteQuizProps) {
     setSelected(null);
   }, [scale]);
 
-  const handlePlay = useCallback(async () => {
+  const handlePlay = useCallback(() => {
     if (!soundEnabled || !currentNote) return;
-    try { await ensureAudioResumed(); } catch { /* */ }
+    ensureAudioReady();
     const handle = playNote(currentNote.frequency, 1.5);
     setIsPlaying(true);
     setHasPlayed(true);
@@ -107,9 +107,9 @@ export function NoteQuiz({ soundEnabled = true }: NoteQuizProps) {
   }, [currentNote, soundEnabled]);
 
   const handleChoice = useCallback(
-    async (choice: Choice) => {
+    (choice: Choice) => {
       if (selected || !hasPlayed) return;
-      try { await ensureAudioResumed(); } catch { /* */ }
+      ensureAudioReady();
       setSelected(choice);
       setAttempts((a) => a + 1);
       if (choice.isCorrect) {

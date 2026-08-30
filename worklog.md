@@ -1656,3 +1656,25 @@ Stage Summary:
 - Created ensureAudioResumed() as the canonical solution for all components
 - All 10 warmup exercises confirmed working with proper note-before-sound timing
 - No regressions introduced
+---
+Task ID: audio-fix-v2
+Agent: Main
+Task: Fix audio regression - await was blocking click handlers
+
+Work Log:
+- Added debug logging to getSharedContext to trace audio flow
+- Discovered AudioContext.resume() NEVER resolves in this sandboxed iframe
+- Root cause: await ensureAudioResumed() in async click handlers blocked execution because resume() promise never resolves
+- The previous fix (ensureAudioResumed with await) actually MADE THINGS WORSE
+- Reverted ALL ensureAudioResumed usage from 9 components back to synchronous ensureAudioReady()
+- Key insight: when new AudioContext() is called synchronously during user gesture, it starts in running state directly (no resume needed)
+- The fire-and-forget resume() in getSharedContext is sufficient as a fallback
+- Removed all debug logging from audio-playback.ts
+- Verified: reference notes, metronome, warmup all work without errors
+
+Stage Summary:
+- NEVER use await with AudioContext.resume() in sandboxed iframes - it blocks forever
+- Synchronous calls (new AudioContext, playNote) during user gestures work correctly
+- The context starts in running state when created from a user gesture
+- All 9 components reverted to synchronous audio pattern
+

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { playClick, ensureAudioResumed } from '@/lib/audio-playback';
+import { playClick, ensureAudioReady } from '@/lib/audio-playback';
 import { motion } from 'framer-motion';
 import { Timer, Play, Pause, RotateCcw, Minus, Plus, Hand } from 'lucide-react';
 
@@ -23,9 +23,8 @@ export function Metronome({ isTunerActive }: MetronomeProps) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tapTimesRef = useRef<number[]>([]);
 
-  const start = useCallback(async () => {
-    // Resume AudioContext during user-gesture context (required by sandboxed iframes)
-    try { await ensureAudioResumed(); } catch { /* */ }
+  const start = useCallback(() => {
+    ensureAudioReady();
     // Play the first beat immediately (AudioContext is now running)
     playClick(1200, 0.06);
     setBeat(0);

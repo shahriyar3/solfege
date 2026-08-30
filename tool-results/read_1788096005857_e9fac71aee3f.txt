@@ -1,0 +1,774 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     5→import { Button } from '@/components/ui/button';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { cn } from '@/lib/utils';
+     8→import { playNote, getSolfeggioScale, ensureAudioResumed } from '@/lib/audio-playback';
+     9→import type { NoteInfo } from '@/lib/audio-playback';
+    10→import { motion, AnimatePresence } from 'framer-motion';
+    11→import {
+    12→  Flame,
+    13→  ChevronLeft,
+    14→  Play,
+    15→  Square,
+    16→  ArrowUp,
+    17→  ArrowDown,
+    18→  Waves,
+    19→  Clock,
+    20→  Gauge,
+    21→  ArrowRightLeft,
+    22→  Music,
+    23→  Repeat,
+    24→  Zap,
+    25→  Target,
+    26→  Info,
+    27→  ChevronDown,
+    28→  ChevronUp,
+    29→} from 'lucide-react';
+    30→
+    31→// ─── Types ──────────────────────────────────────────────────
+    32→
+    33→interface StepNote {
+    34→  note: string;
+    35→  solfege: string;
+    36→  octave: number;
+    37→  frequency: number;
+    38→  duration: number;
+    39→}
+    40→
+    41→type SpeedId = 'slow' | 'medium' | 'fast';
+    42→
+    43→type ExerciseId =
+    44→  | 'ascending'
+    45→  | 'descending'
+    46→  | 'trill'
+    47→  | 'sustain'
+    48→  | 'octave-bridge'
+    49→  | 'arpeggio'
+    50→  | 'interval-leap'
+    51→  | 'triads'
+    52→  | 'vocal-run'
+    53→  | 'center-stability';
+    54→
+    55→interface ExerciseDef {
+    56→  id: ExerciseId;
+    57→  name: string;
+    58→  icon: React.ReactNode;
+    59→  description: string;
+    60→  hasSpeedControl?: boolean;
+    61→  getSteps: (scale: NoteInfo[]) => StepNote[];
+    62→}
+    63→
+    64→interface WarmupModuleProps {
+    65→  soundEnabled?: boolean;
+    66→}
+    67→
+    68→// ─── Helpers ────────────────────────────────────────────────
+    69→
+    70→const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    71→
+    72→function toPersianNum(n: number): string {
+    73→  return String(n)
+    74→    .split('')
+    75→    .map((d) => PERSIAN_DIGITS[parseInt(d)])
+    76→    .join('');
+    77→}
+    78→
+    79→// ─── Note color gradients ──────────────────────────────────
+    80→
+    81→const NOTE_GRADIENTS: Record<string, string> = {
+    82→  C: 'from-red-400 to-rose-500',
+    83→  D: 'from-orange-400 to-amber-500',
+    84→  E: 'from-yellow-400 to-yellow-500',
+    85→  F: 'from-green-400 to-emerald-500',
+    86→  G: 'from-teal-400 to-cyan-500',
+    87→  A: 'from-sky-400 to-blue-500',
+    88→  B: 'from-violet-400 to-purple-500',
+    89→};
+    90→
+    91→// ─── Speed configs (ms per note) ───────────────────────────
+    92→
+    93→const SPEED_CONFIG: Record<SpeedId, { label: string; ms: number }> = {
+    94→  slow: { label: 'آهسته', ms: 500 },
+    95→  medium: { label: 'متوسط', ms: 300 },
+    96→  fast: { label: 'سریع', ms: 150 },
+    97→};
+    98→
+    99→// ─── Frequency helper ──────────────────────────────────────
+   100→
+   101→const A4 = 440.0;
+   102→const A4_MIDI = 69;
+   103→const NOTE_SEMITONES: Record<string, number> = {
+   104→  C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5,
+   105→  'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11,
+   106→};
+   107→
+   108→function noteFreq(note: string, octave: number): number {
+   109→  const midi = (octave + 1) * 12 + (NOTE_SEMITONES[note] ?? 0);
+   110→  return Math.round(A4 * Math.pow(2, (midi - A4_MIDI) / 12) * 10) / 10;
+   111→}
+   112→
+   113→function makeStep(note: string, solfege: string, octave: number, duration: number): StepNote {
+   114→  return { note, solfege, octave, frequency: noteFreq(note, octave), duration };
+   115→}
+   116→
+   117→// ─── Exercise Definitions ──────────────────────────────────
+   118→
+   119→function getExerciseDefs(): ExerciseDef[] {
+   120→  return [
+   121→    {
+   122→      id: 'ascending',
+   123→      name: 'صعودی',
+   124→      icon: <ArrowUp className="h-4 w-4" />,
+   125→      description:
+   126→        'در این تمرین نت‌ها یکی یکی از پایین به بالا اجرا می‌شوند (دو، رِ، می، فا، سل، لا، سی و سپس دوِ اکتاو بالاتر). ' +
+   127→        'هدف این تمرین تقویت کنترل صدا در حرکت صعودی است. ' +
+   128→        'هر نت را با دقت و وضوح بخوانید و سعی کنید فواصل بین نت‌ها یکنواخت باشند. ' +
+   129→        'وقتی نت‌ها پخش می‌شوند، همزمان با صدای مرجع بخوانید.',
+   130→      getSteps: (scale) => {
+   131→        const steps: StepNote[] = scale.map((n) => makeStep(n.note, n.solfege, n.octave, 0.8));
+   132→        steps.push(makeStep('C', 'دو', 5, 1.0));
+   133→        return steps;
+   134→      },
+   135→    },
+   136→    {
+   137→      id: 'descending',
+   138→      name: 'نزولی',
+   139→      icon: <ArrowDown className="h-4 w-4" />,
+   140→      description:
+   141→        'برعکس تمرین صعودی، نت‌ها از بالا به پایین اجرا می‌شوند. ' +
+   142→        'ابتدا دوِ اکتاو ۵ پخش می‌شود و سپس سی، لا، می، سل، فا، می، رِ و دوِ اکتاو ۴. ' +
+   143→        'حرکت نزولی برای کنترل صدا موقع پایین آمدن مهم است. ' +
+   144→        'مراقب باشید صدایتان هنگام نزول افت نکند و تمیز بمانید.',
+   145→      getSteps: () => {
+   146→        const scale = getSolfeggioScale(4);
+   147→        const highC = makeStep('C', 'دو', 5, 1.0);
+   148→        const descending = [...scale].reverse().map((n) => makeStep(n.note, n.solfege, n.octave, 0.8));
+   149→        return [highC, ...descending];
+   150→      },
+   151→    },
+   152→    {
+   153→      id: 'trill',
+   154→      name: 'تریل',
+   155→      icon: <Waves className="h-4 w-4" />,
+   156→      description:
+   157→        'تریل یعنی تناوب سریع بین دو نت مجاور. در این تمرین جفت نت‌های دو-رِ، رِ-می و می-فا را چهار بار تکرار می‌کنید. ' +
+   158→        'این تمرین انعطاف حنجره و سرعت واکنش صدایتان را بالا می‌برد. ' +
+   159→        'با سرعت آهسته شروع کنید و وقتی راحت شدید، سرعت را زیاد کنید. ' +
+   160→        'سعی کنید هر دو نت با صدای واضح و مساوی اجرا شوند.',
+   161→      hasSpeedControl: true,
+   162→      getSteps: (scale) => {
+   163→        const steps: StepNote[] = [];
+   164→        const pairs: [number, number][] = [[0, 1], [1, 2], [2, 3]];
+   165→        for (const [a, b] of pairs) {
+   166→          for (let i = 0; i < 4; i++) {
+   167→            steps.push(makeStep(scale[a].note, scale[a].solfege, scale[a].octave, 0.3));
+   168→            steps.push(makeStep(scale[b].note, scale[b].solfege, scale[b].octave, 0.3));
+   169→          }
+   170→        }
+   171→        return steps;
+   172→      },
+   173→    },
+   174→    {
+   175→      id: 'sustain',
+   176→      name: 'سرج',
+   177→      icon: <Clock className="h-4 w-4" />,
+   178→      description:
+   179→        'در این تمرین هر نت به مدت ۳ ثانیه نگه داشته می‌شود (سرج). ' +
+   180→        'نت‌های دو، می و سل در اکتاو ۴ و سپس دوِ اکتاو ۵ پخش می‌شوند. ' +
+   181→        'هدف: تقویت ثبات صدا و کنترل نفس. ' +
+   182→        'سعی کنید در تمام مدت هر نت، صدایتان بدون لرزش و تغییر ارتفاع بماند. ' +
+   183→        'این تمرین برای مبتدی‌ها بسیار مهم است.',
+   184→      getSteps: () => {
+   185→        const scale = getSolfeggioScale(4);
+   186→        const indices = [0, 2, 4];
+   187→        const steps = indices.map((i) => makeStep(scale[i].note, scale[i].solfege, scale[i].octave, 3.0));
+   188→        steps.push(makeStep('C', 'دو', 5, 3.0));
+   189→        return steps;
+   190→      },
+   191→    },
+   192→    {
+   193→      id: 'octave-bridge',
+   194→      name: 'پل اکتاو',
+   195→      icon: <ArrowRightLeft className="h-4 w-4" />,
+   196→      description:
+   197→        'در این تمرین بین اکتاو‌های مختلف جابه‌جا می‌شوید. ' +
+   198→        'ابتدا نت‌ها در اکتاو ۳ (بم) اجرا می‌شوند، سپس اکتاو ۴ (میانی) و بالاخره اکتاو ۵ (زیر). ' +
+   199→        'بعد دوباره به اکتاو ۳ برمی‌گردیم. ' +
+   200→        'این تمرین به شما کمک می‌کند گستره صدایتان را بشناسید و بین ثبت‌های مختلف راحت جابه‌جا شوید. ' +
+   201→        'اگر نتوانستید اکتاو ۳ یا ۵ را بخوانید، اشکالی ندارد — هدف آشنایی با محدوده صدایتان است.',
+   202→      getSteps: () => {
+   203→        const steps: StepNote[] = [];
+   204→        // Octave 3: C D E
+   205→        for (const n of ['C', 'D', 'E'] as const) {
+   206→          const s = getSolfeggioScale(3).find((x) => x.note === n);
+   207→          if (s) steps.push(makeStep(s.note, s.solfege, s.octave, 1.0));
+   208→        }
+   209→        // Octave 4: C D E
+   210→        for (const n of ['C', 'D', 'E'] as const) {
+   211→          const s = getSolfeggioScale(4).find((x) => x.note === n);
+   212→          if (s) steps.push(makeStep(s.note, s.solfege, s.octave, 1.0));
+   213→        }
+   214→        // Octave 5: C D E
+   215→        for (const n of ['C', 'D', 'E'] as const) {
+   216→          const s = getSolfeggioScale(5).find((x) => x.note === n);
+   217→          if (s) steps.push(makeStep(s.note, s.solfege, s.octave, 1.0));
+   218→        }
+   219→        // Back down
+   220→        for (const n of ['E', 'D', 'C'] as const) {
+   221→          const s = getSolfeggioScale(4).find((x) => x.note === n);
+   222→          if (s) steps.push(makeStep(s.note, s.solfege, s.octave, 1.0));
+   223→        }
+   224→        for (const n of ['E', 'D', 'C'] as const) {
+   225→          const s = getSolfeggioScale(3).find((x) => x.note === n);
+   226→          if (s) steps.push(makeStep(s.note, s.solfege, s.octave, 1.0));
+   227→        }
+   228→        return steps;
+   229→      },
+   230→    },
+   231→    {
+   232→      id: 'arpeggio',
+   233→      name: 'آرپژ',
+   234→      icon: <Music className="h-4 w-4" />,
+   235→      description:
+   236→        'آرپژ یعنی نت‌های یک آکورد را یکی یکی (نه همزمان) بنوازید/بخوانید. ' +
+   237→        'در این تمرین آرپژ‌های گام دو ماژور (دو-می-سل-دو بالا) و لا مینور (لا-دو-می-لا بالا) تمرین می‌شوند. ' +
+   238→        'این تمرین مفهوم هارمونی و آکورد را به شما آموزش می‌دهد. ' +
+   239→        'سعی کنید فواصل بین نت‌ها دقیق باشند — مثلاً دو تا می باید یک فاصله «سوم» باشد.',
+   240→      getSteps: () => {
+   241→        const s4 = getSolfeggioScale(4);
+   242→        const steps: StepNote[] = [];
+   243→        // C major arpeggio: C-E-G-C5
+   244→        steps.push(makeStep(s4[0].note, s4[0].solfege, s4[0].octave, 0.8));
+   245→        steps.push(makeStep(s4[2].note, s4[2].solfege, s4[2].octave, 0.8));
+   246→        steps.push(makeStep(s4[4].note, s4[4].solfege, s4[4].octave, 0.8));
+   247→        steps.push(makeStep('C', 'دو', 5, 1.0));
+   248→        // A minor arpeggio: A-C-E-A
+   249→        steps.push(makeStep(s4[5].note, s4[5].solfege, s4[5].octave, 0.8));
+   250→        steps.push(makeStep(s4[0].note, s4[0].solfege, s4[0].octave, 0.8));
+   251→        steps.push(makeStep(s4[2].note, s4[2].solfege, s4[2].octave, 0.8));
+   252→        steps.push(makeStep('A', 'لا', 5, 1.0));
+   253→        // F major: F-A-C-F
+   254→        steps.push(makeStep(s4[3].note, s4[3].solfege, s4[3].octave, 0.8));
+   255→        steps.push(makeStep(s4[5].note, s4[5].solfege, s4[5].octave, 0.8));
+   256→        steps.push(makeStep(s4[0].note, s4[0].solfege, s4[0].octave, 0.8));
+   257→        steps.push(makeStep('F', 'فا', 5, 1.0));
+   258→        // G major: G-B-D-G
+   259→        steps.push(makeStep(s4[4].note, s4[4].solfege, s4[4].octave, 0.8));
+   260→        steps.push(makeStep(s4[6].note, s4[6].solfege, s4[6].octave, 0.8));
+   261→        steps.push(makeStep(s4[1].note, s4[1].solfege, s4[1].octave, 0.8));
+   262→        steps.push(makeStep('G', 'سل', 5, 1.0));
+   263→        return steps;
+   264→      },
+   265→    },
+   266→    {
+   267→      id: 'interval-leap',
+   268→      name: 'فاصله‌جویی',
+   269→      icon: <Zap className="h-4 w-4" />,
+   270→      description:
+   271→        'در این تمرین به جای نت‌های مجاور، فاصله‌های بزرگ‌تر می‌پرید. ' +
+   272→        'مثلاً از دو مستقیماً به می می‌روید، یا از فا به لا. ' +
+   273→        'این تمرین کنترل صدا در پرش‌های بزرگ را تقویت می‌کند. ' +
+   274→        'سعی کنید قبل از هر پرش، نت هدف را در ذهن خود بشنوید و سپس مستقیم به آن بروید. ' +
+   275→        'اگر اول دقت نکردید، اشکالی ندارد — با تمرین بهتر می‌شود.',
+   276→      getSteps: () => {
+   277→        const s4 = getSolfeggioScale(4);
+   278→        const steps: StepNote[] = [];
+   279→        // Thirds: C-E, D-F, E-G, F-A, G-B
+   280→        for (let i = 0; i < 5; i++) {
+   281→          steps.push(makeStep(s4[i].note, s4[i].solfege, s4[i].octave, 0.9));
+   282→          steps.push(makeStep(s4[i + 2].note, s4[i + 2].solfege, s4[i + 2].octave, 0.9));
+   283→        }
+   284→        return steps;
+   285→      },
+   286→    },
+   287→    {
+   288→      id: 'triads',
+   289→      name: 'تثلیث',
+   290→      icon: <Target className="h-4 w-4" />,
+   291→      description:
+   292→        'تثلیث (تریاد) یعنی سه نت آکورد را پشت سر هم بخوانید. ' +
+   293→        'در این تمرین تریادهای دو ماژور (دو-می-سل)، رِ مینور (رِ-فا-لا) و فا ماژور (فا-لا-دو) تمرین می‌شوند. ' +
+   294→        'هر تریاد دو بار تکرار می‌شود. ' +
+   295→        'هدف: آشنایی با ساختار آکوردها و تقویت حافظه موسیقایی. ' +
+   296→        'سعی کنید صدای هر تریاد را در ذهن نگه دارید.',
+   297→      getSteps: () => {
+   298→        const s4 = getSolfeggioScale(4);
+   299→        const steps: StepNote[] = [];
+   300→        // C major triad x2
+   301→        for (let rep = 0; rep < 2; rep++) {
+   302→          for (const i of [0, 2, 4]) {
+   303→            steps.push(makeStep(s4[i].note, s4[i].solfege, s4[i].octave, 0.7));
+   304→          }
+   305→          if (rep === 0) steps.push(makeStep('C', 'دو', 5, 1.0));
+   306→        }
+   307→        // D minor triad x2
+   308→        for (let rep = 0; rep < 2; rep++) {
+   309→          for (const i of [1, 3, 5]) {
+   310→            steps.push(makeStep(s4[i].note, s4[i].solfege, s4[i].octave, 0.7));
+   311→          }
+   312→          if (rep === 0) steps.push(makeStep('D', 'رِ', 5, 1.0));
+   313→        }
+   314→        // F major triad x2
+   315→        for (let rep = 0; rep < 2; rep++) {
+   316→          for (const i of [3, 5, 0]) {
+   317→            steps.push(makeStep(s4[i].note, s4[i].solfege, s4[i].octave, 0.7));
+   318→          }
+   319→          if (rep === 0) steps.push(makeStep('F', 'فا', 5, 1.0));
+   320→        }
+   321→        return steps;
+   322→      },
+   323→    },
+   324→    {
+   325→      id: 'vocal-run',
+   326→      name: 'گریز صوتی',
+   327→      icon: <Repeat className="h-4 w-4" />,
+   328→      description:
+   329→        'گریز صوتی یک تمرین پیشرفته‌تر است: ابتدا نت‌ها سریع بالا می‌روند و بعد سریع پایین می‌آیند. ' +
+   330→        'مثل یک موج صوتی! این تمرین سرعت و چابکی حنجره را تقویت می‌کند. ' +
+   331→        'اگر مبتدی هستید، اول با سرعت آهسته تمرین کنید. ' +
+   332→        'هدف این است که بدون مکث، نت‌ها را روان بالا و پایین بروید.',
+   333→      hasSpeedControl: true,
+   334→      getSteps: () => {
+   335→        const s4 = getSolfeggioScale(4);
+   336→        const steps: StepNote[] = [];
+   337→        // Ascending run
+   338→        for (const n of s4) {
+   339→          steps.push(makeStep(n.note, n.solfege, n.octave, 0.4));
+   340→        }
+   341→        steps.push(makeStep('C', 'دو', 5, 0.6));
+   342→        // Descending run
+   343→        for (const n of [...s4].reverse()) {
+   344→          steps.push(makeStep(n.note, n.solfege, n.octave, 0.4));
+   345→        }
+   346→        steps.push(makeStep('C', 'دو', 3, 0.6));
+   347→        // Ascending again
+   348→        for (const n of s4) {
+   349→          steps.push(makeStep(n.note, n.solfege, n.octave, 0.4));
+   350→        }
+   351→        return steps;
+   352→      },
+   353→    },
+   354→    {
+   355→      id: 'center-stability',
+   356→      name: 'ثبات مرکزی',
+   357→      icon: <Target className="h-4 w-4" />,
+   358→      description:
+   359→        'این تمرین برای تقویت ثبات صداست. یک نت مرکزی (سل) را بارها تکرار می‌کنید و بین نت‌های اطرافش جابه‌جا می‌شوید. ' +
+   360→        'الگو: سل → لا → سل → فا → سل → می → سل → رِ → سل → دو. ' +
+   361→        'هر بار به سل برمی‌گردید تا صدایتان را «لنگرگاه» نگه دارید. ' +
+   362→        'این تمرین برای مبتدی‌ها عالی است چون هم تمرین فاصله است و هم ثبات.',
+   363→      getSteps: () => {
+   364→        const s4 = getSolfeggioScale(4);
+   365→        const steps: StepNote[] = [];
+   366→        const center = s4[4]; // G4 (سل)
+   367→        const jumps = [5, 3, 2, 1, 0]; // A, F, E, D, C
+   368→        // G → A → G → F → G → E → G → D → G → C
+   369→        for (const j of jumps) {
+   370→          steps.push(makeStep(center.note, center.solfege, center.octave, 0.7));
+   371→          steps.push(makeStep(s4[j].note, s4[j].solfege, s4[j].octave, 0.7));
+   372→        }
+   373→        steps.push(makeStep(center.note, center.solfege, center.octave, 0.7));
+   374→        // Return: C → G → D → G → E → G → F → G → A → G
+   375→        const revJumps = [...jumps].reverse();
+   376→        for (const j of revJumps) {
+   377→          steps.push(makeStep(s4[j].note, s4[j].solfege, s4[j].octave, 0.7));
+   378→          steps.push(makeStep(center.note, center.solfege, center.octave, 0.7));
+   379→        }
+   380→        return steps;
+   381→      },
+   382→    },
+   383→  ];
+   384→}
+   385→
+   386→// ─── Component ──────────────────────────────────────────────
+   387→
+   388→export function WarmupModule({ soundEnabled = true }: WarmupModuleProps) {
+   389→  const [expanded, setExpanded] = useState(false);
+   390→  const [activeExercise, setActiveExercise] = useState<ExerciseId>('ascending');
+   391→  const [currentStep, setCurrentStep] = useState(-1);
+   392→  const [isPlaying, setIsPlaying] = useState(false);
+   393→  const [speed, setSpeed] = useState<SpeedId>('medium');
+   394→  const [showDescription, setShowDescription] = useState(true);
+   395→
+   396→  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   397→  const stopRef = useRef<(() => void) | null>(null);
+   398→  const playStepRef = useRef<(idx: number) => void>(() => {});
+   399→  const scale = useMemo(() => getSolfeggioScale(4), []);
+   400→  const exercises = useMemo(() => getExerciseDefs(), []);
+   401→
+   402→  const steps = useMemo(
+   403→    () => exercises.find((e) => e.id === activeExercise)?.getSteps(scale) ?? [],
+   404→    [activeExercise, exercises, scale],
+   405→  );
+   406→
+   407→  const currentExerciseDef = exercises.find((e) => e.id === activeExercise)!;
+   408→
+   409→  // Cleanup on unmount
+   410→  useEffect(() => {
+   411→    return () => {
+   412→      if (timerRef.current) clearTimeout(timerRef.current);
+   413→      if (stopRef.current) stopRef.current();
+   414→    };
+   415→  }, []);
+   416→
+   417→  const stopAll = useCallback(() => {
+   418→    if (timerRef.current) {
+   419→      clearTimeout(timerRef.current);
+   420→      timerRef.current = null;
+   421→    }
+   422→    if (stopRef.current) {
+   423→      stopRef.current();
+   424→      stopRef.current = null;
+   425→    }
+   426→    setIsPlaying(false);
+   427→    setCurrentStep(-1);
+   428→  }, []);
+   429→
+   430→  // Play a single step: update note name INSTANTLY, then play sound after a tiny delay
+   431→  // so the visual update (note name) appears before the audio starts
+   432→  const playStepFn = useCallback(
+   433→    (stepIndex: number) => {
+   434→      if (stepIndex >= steps.length) {
+   435→        stopAll();
+   436→        return;
+   437→      }
+   438→
+   439→      const step = steps[stepIndex];
+   440→      // Update note display IMMEDIATELY — before any work
+   441→      setCurrentStep(stepIndex);
+   442→
+   443→      if (soundEnabled) {
+   444→        if (stopRef.current) {
+   445→          stopRef.current();
+   446→          stopRef.current = null;
+   447→        }
+   448→        // Small delay so React re-renders the note name BEFORE sound starts
+   449→        timerRef.current = setTimeout(() => {
+   450→          const handle = playNote(step.frequency, step.duration);
+   451→          stopRef.current = handle.stop;
+   452→
+   453→          // Determine delay before next step
+   454→          let delay: number;
+   455→          if (currentExerciseDef.hasSpeedControl) {
+   456→            delay = SPEED_CONFIG[speed].ms;
+   457→          } else if (activeExercise === 'sustain') {
+   458→            delay = step.duration * 1000 + 400;
+   459→          } else {
+   460→            delay = step.duration * 1000 + 200;
+   461→          }
+   462→
+   463→          // Subtract the 50ms we already waited
+   464→          const remainingDelay = Math.max(50, delay - 50);
+   465→
+   466→          timerRef.current = setTimeout(() => {
+   467→            playStepRef.current(stepIndex + 1);
+   468→          }, remainingDelay);
+   469→        }, 50);
+   470→      } else {
+   471→        // No sound — just advance by the visual delay
+   472→        let delay: number;
+   473→        if (currentExerciseDef.hasSpeedControl) {
+   474→          delay = SPEED_CONFIG[speed].ms;
+   475→        } else if (activeExercise === 'sustain') {
+   476→          delay = step.duration * 1000 + 400;
+   477→        } else {
+   478→          delay = step.duration * 1000 + 200;
+   479→        }
+   480→
+   481→        timerRef.current = setTimeout(() => {
+   482→          playStepRef.current(stepIndex + 1);
+   483→        }, delay);
+   484→      }
+   485→    },
+   486→    [steps, soundEnabled, activeExercise, speed, stopAll, currentExerciseDef.hasSpeedControl],
+   487→  );
+   488→
+   489→  useEffect(() => {
+   490→    playStepRef.current = playStepFn;
+   491→  }, [playStepFn]);
+   492→
+   493→  const handlePlay = useCallback(async () => {
+   494→    if (isPlaying) {
+   495→      stopAll();
+   496→      return;
+   497→    }
+   498→    try { await ensureAudioResumed(); } catch { /* */ }
+   499→    setIsPlaying(true);
+   500→    setCurrentStep(0);
+   501→    playStepRef.current(0);
+   502→  }, [isPlaying, stopAll]);
+   503→
+   504→  const handleExerciseChange = useCallback(
+   505→    (id: ExerciseId) => {
+   506→      stopAll();
+   507→      setActiveExercise(id);
+   508→      setShowDescription(true);
+   509→    },
+   510→    [stopAll],
+   511→  );
+   512→
+   513→  // ─── Teaser ─────────────────────────────────────────────
+   514→  if (!expanded) {
+   515→    return (
+   516→      <Card
+   517→        className="border-dashed border-2 border-border/30 bg-gradient-to-br from-muted/10 to-muted/5 hover:border-orange-300/40 transition-all duration-300 group cursor-pointer card-hover"
+   518→        onClick={() => setExpanded(true)}
+   519→      >
+   520→        <CardContent className="p-5 flex items-center gap-4">
+   521→          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/35 transition-all duration-300 group-hover:scale-105">
+   522→            <Flame className="h-6 w-6 text-white" />
+   523→          </div>
+   524→          <div className="flex-1">
+   525→            <h3 className="text-sm font-bold">گرم کردن صدا</h3>
+   526→            <p className="text-xs text-muted-foreground mt-0.5">
+   527→              تمرینات گرم کردن قبل از سلفژ
+   528→            </p>
+   529→            <div className="flex gap-1.5 mt-1.5">
+   530→              <Badge variant="outline" className="text-[9px] h-4">
+   531→                {toPersianNum(exercises.length)} تمرین
+   532→              </Badge>
+   533→            </div>
+   534→          </div>
+   535→          <ChevronLeft className="h-5 w-5 text-muted-foreground/50 group-hover:text-orange-500 transition-colors" />
+   536→        </CardContent>
+   537→      </Card>
+   538→    );
+   539→  }
+   540→
+   541→  // ─── Active State ───────────────────────────────────────
+   542→  const currentStepData = currentStep >= 0 && currentStep < steps.length
+   543→    ? steps[currentStep]
+   544→    : null;
+   545→
+   546→  return (
+   547→    <Card className="border border-border/40 bg-card/90 backdrop-blur-sm shadow-lg shadow-black/[0.04] overflow-hidden">
+   548→      <CardHeader className="pb-2 pt-4 px-4">
+   549→        <div className="flex items-center justify-between">
+   550→          <CardTitle className="text-sm font-bold flex items-center gap-2">
+   551→            <Flame className="h-4 w-4 text-orange-500" />
+   552→            گرم کردن صدا
+   553→          </CardTitle>
+   554→          <Button
+   555→            variant="ghost"
+   556→            size="sm"
+   557→            onClick={() => {
+   558→              stopAll();
+   559→              setExpanded(false);
+   560→            }}
+   561→            className="h-7 w-7 p-0 text-muted-foreground"
+   562→            title="بستن"
+   563→          >
+   564→            <ChevronLeft className="h-4 w-4" />
+   565→          </Button>
+   566→        </div>
+   567→      </CardHeader>
+   568→
+   569→      <CardContent className="px-4 pb-4 space-y-4">
+   570→        {/* Exercise selector — scrollable row */}
+   571→        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+   572→          {exercises.map((ex) => (
+   573→            <button
+   574→              key={ex.id}
+   575→              onClick={() => handleExerciseChange(ex.id)}
+   576→              className={cn(
+   577→                'flex-shrink-0 flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-medium transition-all duration-200 px-2.5',
+   578→                activeExercise === ex.id
+   579→                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-orange-500/25'
+   580→                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+   581→              )}
+   582→            >
+   583→              {ex.icon}
+   584→              <span>{ex.name}</span>
+   585→            </button>
+   586→          ))}
+   587→        </div>
+   588→
+   589→        {/* Exercise description (collapsible) */}
+   590→        <div className="overflow-hidden">
+   591→          <button
+   592→            onClick={() => setShowDescription((p) => !p)}
+   593→            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full"
+   594→          >
+   595→            <Info className="h-3.5 w-3.5" />
+   596→            <span className="font-medium">راهنمای تمرین</span>
+   597→            {showDescription ? <ChevronUp className="h-3 w-3 mr-auto" /> : <ChevronDown className="h-3 w-3 mr-auto" />}
+   598→          </button>
+   599→          <AnimatePresence>
+   600→            {showDescription && (
+   601→              <motion.div
+   602→                initial={{ height: 0, opacity: 0 }}
+   603→                animate={{ height: 'auto', opacity: 1 }}
+   604→                exit={{ height: 0, opacity: 0 }}
+   605→                transition={{ duration: 0.2 }}
+   606→                className="overflow-hidden"
+   607→              >
+   608→                <p className="text-[11px] leading-relaxed text-muted-foreground pt-2 pr-1">
+   609→                  {currentExerciseDef.description}
+   610→                </p>
+   611→              </motion.div>
+   612→            )}
+   613→          </AnimatePresence>
+   614→        </div>
+   615→
+   616→        {/* Speed control for exercises that support it */}
+   617→        {currentExerciseDef.hasSpeedControl && (
+   618→          <div className="flex items-center justify-center gap-2">
+   619→            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+   620→            <span className="text-[11px] text-muted-foreground">سرعت:</span>
+   621→            {(Object.keys(SPEED_CONFIG) as SpeedId[]).map((s) => (
+   622→              <button
+   623→                key={s}
+   624→                onClick={() => setSpeed(s)}
+   625→                className={cn(
+   626→                  'h-7 px-2.5 rounded-md text-[11px] font-medium transition-all',
+   627→                  speed === s
+   628→                    ? 'bg-primary text-primary-foreground shadow-sm'
+   629→                    : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+   630→                )}
+   631→              >
+   632→                {SPEED_CONFIG[s].label}
+   633→              </button>
+   634→            ))}
+   635→          </div>
+   636→        )}
+   637→
+   638→        {/* Current note display — circle stays, only text changes */}
+   639→        <div className="flex justify-center py-2">
+   640→          <div
+   641→            className={cn(
+   642→              'relative h-32 w-32 rounded-full flex flex-col items-center justify-center transition-all duration-150',
+   643→              'bg-gradient-to-br from-muted/80 to-muted/40 border-2',
+   644→              currentStepData && isPlaying
+   645→                ? 'border-orange-400 shadow-lg shadow-orange-500/20'
+   646→                : 'border-border/30 hover:border-border/50',
+   647→            )}
+   648→          >
+   649→            {/* Pulsing ring when playing */}
+   650→            {currentStepData && isPlaying && (
+   651→              <motion.div
+   652→                className="absolute inset-0 rounded-full border-2 border-orange-400/40"
+   653→                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0, 0.4] }}
+   654→                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+   655→              />
+   656→            )}
+   657→
+   658→            {currentStepData && isPlaying ? (
+   659→              <>
+   660→                {/* Note name — instant swap, no exit/enter animation */}
+   661→                <span
+   662→                  key={`n-${currentStep}`}
+   663→                  className={cn(
+   664→                    'text-3xl font-bold bg-gradient-to-br bg-clip-text text-transparent',
+   665→                    NOTE_GRADIENTS[currentStepData.note] ?? 'from-gray-400 to-gray-500',
+   666→                  )}
+   667→                >
+   668→                  {currentStepData.solfege}
+   669→                </span>
+   670→                <span
+   671→                  key={`s-${currentStep}`}
+   672→                  className="text-xs text-muted-foreground mt-0.5"
+   673→                >
+   674→                  {currentStepData.note}{toPersianNum(currentStepData.octave)}
+   675→                </span>
+   676→              </>
+   677→            ) : (
+   678→              <>
+   679→                <span className="text-2xl text-muted-foreground/40">
+   680→                  {currentExerciseDef.icon}
+   681→                </span>
+   682→                <span className="text-[11px] text-muted-foreground mt-1">
+   683→                  {currentExerciseDef.name}
+   684→                </span>
+   685→              </>
+   686→            )}
+   687→          </div>
+   688→        </div>
+   689→
+   690→        {/* Step progress dots */}
+   691→        <div className={cn(
+   692→          'flex items-center justify-center flex-wrap',
+   693→          steps.length > 15 ? 'gap-1' : 'gap-1.5',
+   694→        )}>
+   695→          {steps.map((step, i) => {
+   696→            const isCurrent = i === currentStep && isPlaying;
+   697→            const isPast = i < currentStep && isPlaying;
+   698→            return (
+   699→              <motion.div
+   700→                key={i}
+   701→                initial={false}
+   702→                animate={{
+   703→                  scale: isCurrent ? 1.4 : 1,
+   704→                  opacity: isPast ? 0.4 : isCurrent ? 1 : 0.25,
+   705→                }}
+   706→                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+   707→                className={cn(
+   708→                  'rounded-full transition-colors duration-200',
+   709→                  steps.length > 15 ? 'h-1.5 w-1.5' : 'h-2 w-2',
+   710→                  isCurrent
+   711→                    ? cn('bg-gradient-to-br', NOTE_GRADIENTS[step.note] ?? 'from-gray-400 to-gray-500')
+   712→                    : isPast
+   713→                      ? 'bg-muted-foreground/40'
+   714→                      : 'bg-border',
+   715→                )}
+   716→              />
+   717→            );
+   718→          })}
+   719→        </div>
+   720→
+   721→        {/* Play / Stop button */}
+   722→        <div className="flex justify-center">
+   723→          <Button
+   724→            onClick={handlePlay}
+   725→            className={cn(
+   726→              'h-11 px-8 rounded-full font-medium transition-all duration-300',
+   727→              isPlaying
+   728→                ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/25'
+   729→                : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg shadow-orange-500/25',
+   730→            )}
+   731→          >
+   732→            <AnimatePresence mode="wait" initial={false}>
+   733→              {isPlaying ? (
+   734→                <motion.span
+   735→                  key="stop"
+   736→                  initial={{ scale: 0, rotate: -90 }}
+   737→                  animate={{ scale: 1, rotate: 0 }}
+   738→                  exit={{ scale: 0, rotate: 90 }}
+   739→                  className="flex items-center gap-2"
+   740→                >
+   741→                  <Square className="h-4 w-4" fill="currentColor" />
+   742→                  توقف
+   743→                </motion.span>
+   744→              ) : (
+   745→                <motion.span
+   746→                  key="play"
+   747→                  initial={{ scale: 0, rotate: 90 }}
+   748→                  animate={{ scale: 1, rotate: 0 }}
+   749→                  exit={{ scale: 0, rotate: -90 }}
+   750→                  className="flex items-center gap-2"
+   751→                >
+   752→                  <Play className="h-4 w-4" fill="currentColor" />
+   753→                  شروع
+   754→                </motion.span>
+   755→              )}
+   756→            </AnimatePresence>
+   757→          </Button>
+   758→        </div>
+   759→
+   760→        {/* Step counter */}
+   761→        {isPlaying && currentStep >= 0 && (
+   762→          <motion.p
+   763→            initial={{ opacity: 0 }}
+   764→            animate={{ opacity: 1 }}
+   765→            className="text-center text-[11px] text-muted-foreground"
+   766→          >
+   767→            نت {toPersianNum(currentStep + 1)} از {toPersianNum(steps.length)}
+   768→          </motion.p>
+   769→        )}
+   770→      </CardContent>
+   771→    </Card>
+   772→  );
+   773→}
+   774→

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getNaturalNotes, playNote, playCorrectSound, playWrongSound, ensureAudioResumed } from '@/lib/audio-playback';
+import { getNaturalNotes, playNote, playCorrectSound, playWrongSound, ensureAudioReady } from '@/lib/audio-playback';
 import type { NoteInfo } from '@/lib/audio-playback';
 import type { PitchResult } from '@/lib/pitch-detection';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -210,8 +210,8 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     }
   }, [currentPitch, isActive, tMidi]);
 
-  const playRootNote = useCallback(async (freq: number) => {
-    try { await ensureAudioResumed(); } catch { /* */ }
+  const playRootNote = useCallback((freq: number) => {
+    ensureAudioReady();
     const handle = playNote(freq, 1.2);
     setPlayingRoot(true);
     setTimeout(() => { setPlayingRoot(false); handle.stop(); }, 1300);
@@ -237,8 +237,8 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     setTimeout(() => playRootNote(root.frequency), 300);
   }, [catId, avail, intIdx, root.frequency, playRootNote]);
 
-  const reveal = useCallback(async () => {
-    try { await ensureAudioResumed(); } catch { /* */ }
+  const reveal = useCallback(() => {
+    ensureAudioReady();
     if (soundEnabled) playWrongSound();
     setRevealed(true);
     setResult('wrong');
@@ -283,9 +283,9 @@ export function IntervalTrainer({ currentPitch, isActive, soundEnabled = true }:
     setBest(0);
   }, []);
 
-  const playTargetNote = useCallback(async () => {
+  const playTargetNote = useCallback(() => {
     if (!target) return;
-    try { await ensureAudioResumed(); } catch { /* */ }
+    ensureAudioReady();
     const handle = playNote(target.frequency, 1.2);
     setPlayingTarget(true);
     setTimeout(() => { setPlayingTarget(false); handle.stop(); }, 1300);

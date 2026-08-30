@@ -114,7 +114,6 @@ function getSharedContext(): AudioContext {
     sharedCtx = new AudioContext();
   } catch (e) {
     console.error('[audio-playback] Failed to create AudioContext:', e);
-    // Return a dummy‑like object so callers degrade gracefully
     return null as unknown as AudioContext;
   }
 
